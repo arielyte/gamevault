@@ -1,0 +1,19 @@
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Codex/session files
+.codex
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Dependency/build folders should not be used in this vanilla project,
+# but ignore them in case a tool creates them accidentally.
+node_modules/
+dist/
+build/

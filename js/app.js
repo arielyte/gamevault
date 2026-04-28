@@ -1,0 +1,202 @@
+import { getApiStatusMessage, getGameDetails, getGames } from "./api.js";
+import { addFavorite, getFavorites, isFavorite, removeFavorite } from "./storage.js";
+import {
+  renderBrowse,
+  renderCategories,
+  renderEmpty,
+  renderError,
+  renderFavorites,
+  renderGameDetails,
+  renderHome,
+  renderLoading
+} from "./render.js";
+import { getRoute, setActiveNav, startRouter } from "./router.js";
+
+const app = document.querySelector("#app");
+let latestGames = [];
+
+startRouter(renderCurrentRoute);
+
+async function renderCurrentRoute() {
+  const route = getRoute();
+  setActiveNav(route.page);
+  app.focus();
+
+  if (route.page === "home") {
+    await showHome();
+    return;
+  }
+
+  if (route.page === "browse") {
+    await showBrowse(route.query);
+    return;
+  }
+
+  if (route.page === "categories") {
+    showCategories();
+    return;
+  }
+
+  if (route.page === "favorites") {
+    showFavorites();
+    return;
+  }
+
+  if (route.page === "game" && route.id) {
+    await showGameDetails(route.id);
+    return;
+  }
+
+  window.location.hash = "#/home";
+}
+
+async function showHome() {
+  renderLoading(app, "Loading featured games...");
+
+  try {
+    const games = await getGames({ sortBy: "popularity" });
+    latestGames = games;
+    renderHome(app, games.slice(0, 6), getFavorites().length, getApiStatusMessage());
+  } catch (error) {
+    renderError(app, createApiErrorMessage(error));
+  }
+}
+
+async function showBrowse(query) {
+  const filters = {
+    search: query.get("search") || "",
+    platform: query.get("platform") || "",
+    category: query.get("category") || "",
+    sortBy: query.get("sortBy") || ""
+  };
+
+  renderLoading(app, "Loading game list...");
+
+  try {
+    latestGames = await getGames(filters);
+    const visibleGames = filterGamesBySearch(latestGames, filters.search);
+
+    if (visibleGames.length === 0) {
+      renderBrowse(app, [], filters, getApiStatusMessage());
+      renderEmptyInsideResults();
+    } else {
+      renderBrowse(app, visibleGames, filters, getApiStatusMessage());
+    }
+
+    connectBrowseControls();
+  } catch (error) {
+    renderError(app, createApiErrorMessage(error));
+  }
+}
+
+function showCategories() {
+  renderCategories(app);
+
+  const categoryButtons = document.querySelectorAll("[data-category]");
+
+  categoryButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const category = button.dataset.category;
+      window.location.hash = `#/browse?category=${category}`;
+    });
+  });
+}
+
+function showFavorites() {
+  renderFavorites(app, getFavorites());
+
+  const removeButtons = document.querySelectorAll("[data-remove-favorite]");
+
+  removeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      removeFavorite(button.dataset.removeFavorite);
+      showFavorites();
+    });
+  });
+}
+
+async function showGameDetails(gameId) {
+  renderLoading(app, "Loading game details...");
+
+  try {
+    const game = await getGameDetails(gameId);
+    renderGameDetails(app, game, isFavorite(game.id));
+    connectFavoriteButton(game);
+  } catch (error) {
+    renderError(app, createApiErrorMessage(error));
+  }
+}
+
+function connectBrowseControls() {
+  const form = document.querySelector("#filter-form");
+  const clearButton = document.querySelector("#clear-filters");
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+
+    for (const [key, value] of formData.entries()) {
+      if (value) {
+        params.set(key, value);
+      }
+    }
+
+    window.location.hash = params.toString() ? `#/browse?${params}` : "#/browse";
+  });
+
+  clearButton.addEventListener("click", () => {
+    window.location.hash = "#/browse";
+  });
+}
+
+function connectFavoriteButton(game) {
+  const button = document.querySelector("[data-favorite-id]");
+
+  button.addEventListener("click", () => {
+    if (isFavorite(game.id)) {
+      removeFavorite(game.id);
+    } else {
+      addFavorite(createFavoriteSummary(game));
+    }
+
+    renderGameDetails(app, game, isFavorite(game.id));
+    connectFavoriteButton(game);
+  });
+}
+
+function filterGamesBySearch(games, searchTerm) {
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  if (!normalizedSearch) {
+    return games;
+  }
+
+  return games.filter((game) => game.title.toLowerCase().includes(normalizedSearch));
+}
+
+function renderEmptyInsideResults() {
+  const resultsArea = document.querySelector("[aria-label='Game results']");
+  const grid = resultsArea.querySelector(".game-grid");
+  grid.innerHTML = `
+    <section class="state-box">
+      <h2>No results</h2>
+      <p>Try changing the search text, category, platform, or sort option.</p>
+    </section>
+  `;
+}
+
+function createFavoriteSummary(game) {
+  return {
+    id: game.id,
+    title: game.title,
+    thumbnail: game.thumbnail,
+    short_description: game.short_description,
+    genre: game.genre,
+    platform: game.platform
+  };
+}
+
+function createApiErrorMessage(error) {
+  return `${error.message} The FreeToGame API may be blocked by the browser/CORS. Please check the console for the exact request URL and error details.`;
+}
