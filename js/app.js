@@ -1,9 +1,8 @@
-import { getApiDataSource, getApiStatusMessage, getGameDetails, getGames } from "./api.js";
+import { getGameDetails, getGames } from "./api.js";
 import { addFavorite, getFavorites, isFavorite, removeFavorite } from "./storage.js";
 import {
   renderBrowse,
   renderCategories,
-  renderEmpty,
   renderError,
   renderFavorites,
   renderGameDetails,
@@ -13,7 +12,6 @@ import {
 import { getRoute, setActiveNav, startRouter } from "./router.js";
 
 const app = document.querySelector("#app");
-let latestGames = [];
 
 startRouter(renderCurrentRoute);
 
@@ -55,8 +53,7 @@ async function showHome() {
 
   try {
     const games = await getGames();
-    latestGames = games;
-    renderHome(app, games.slice(0, 6), getFavorites().length, getApiStatusMessage(), getApiDataSource(), games.length);
+    renderHome(app, games.slice(0, 6), getFavorites().length, games.length);
   } catch (error) {
     renderError(app, createApiErrorMessage(error));
   }
@@ -70,17 +67,17 @@ async function showBrowse(query) {
     sortBy: query.get("sortBy") || ""
   };
 
-  renderLoading(app, "Loading game list...");
+  renderLoading(app, "Loading deals...");
 
   try {
-    latestGames = await getGames(filters);
-    const visibleGames = filterGamesBySearch(latestGames, filters.search);
+    const games = await getGames(filters);
+    const visibleGames = filterGamesBySearch(games, filters.search);
 
     if (visibleGames.length === 0) {
-      renderBrowse(app, [], filters, getApiStatusMessage(), getApiDataSource());
+      renderBrowse(app, [], filters);
       renderEmptyInsideResults();
     } else {
-      renderBrowse(app, visibleGames, filters, getApiStatusMessage(), getApiDataSource());
+      renderBrowse(app, visibleGames, filters);
     }
 
     connectBrowseControls();
@@ -115,7 +112,7 @@ function showFavorites() {
 }
 
 async function showGameDetails(gameId) {
-  renderLoading(app, "Loading game details...");
+  renderLoading(app, "Loading deal details...");
 
   try {
     const game = await getGameDetails(gameId);
@@ -175,7 +172,7 @@ function filterGamesBySearch(games, searchTerm) {
 }
 
 function renderEmptyInsideResults() {
-  const resultsArea = document.querySelector("[aria-label='Game results']");
+  const resultsArea = document.querySelector("[aria-label='Deal results']");
   const grid = resultsArea.querySelector(".game-grid");
   grid.innerHTML = `
     <section class="state-box">

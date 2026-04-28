@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title">
+  <title id="title">GameVault image placeholder</title>
+  <rect width="640" height="360" fill="#07142f"/>
+  <rect x="18" y="18" width="604" height="324" rx="24" fill="#0c2555" stroke="#38d5ff" stroke-width="6"/>
+  <circle cx="320" cy="144" r="56" fill="none" stroke="#8beeff" stroke-width="10"/>
+  <path d="M226 238h188" stroke="#38d5ff" stroke-width="10" stroke-linecap="round"/>
+  <text x="320" y="266" fill="#f4f8ff" font-family="Arial, sans-serif" font-size="52" font-weight="700" text-anchor="middle">GV</text>
+  <text x="320" y="310" fill="#b9c7dc" font-family="Arial, sans-serif" font-size="24" text-anchor="middle">No Image</text>
+</svg>

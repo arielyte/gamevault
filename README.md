@@ -1,19 +1,31 @@
 # GameVault
 
-GameVault is a vanilla HTML, CSS, and JavaScript school project for discovering live PC game deals.
-It uses hash routing to show different views without any framework or build tool.
+Student name: Ariel Veitsman
+
+GameVault is a responsive game discovery and deals vault. It uses live data from the CheapShark API so users can browse discounted PC games, search and filter deals, open deal details, and save favorite deals in the browser.
+
+The project uses vanilla HTML, CSS, and JavaScript only. It does not use frameworks, npm packages, build tools, or a backend server.
+
+## Technologies Used
+
+- HTML5 semantic structure
+- CSS3 with Flexbox, Grid, and media queries
+- Vanilla JavaScript ES6 modules
+- `fetch` with `async/await`
+- LocalStorage for favorites
 
 ## Features
 
-- Home, Browse Deals, Collections, Favorites, and Deal Details views
+- Home, Browse Deals, Categories, Favorites, and Deal Details views
 - Dynamic deal cards rendered with JavaScript
 - Search by title
 - Filter by game store and maximum price
 - Sort with CheapShark supported sort options
-- Deal details page for each selected game
+- Category/collection selection from the Categories view
+- Details view with deal metadata, price comparison info, ratings, and favorites
 - Save and remove favorite deals with LocalStorage
 - Loading, error, and empty-results states
-- Responsive layout for mobile, tablet, and desktop
+- Responsive layout for mobile, tablet, and desktop screens
 
 ## API Used
 
@@ -22,18 +34,10 @@ This project uses the CheapShark API because it works directly from browser `fet
 - API base URL: `https://www.cheapshark.com/api/1.0`
 - Deals endpoint: `GET /deals`
 - Deal details endpoint: `GET /deals?id={deal_id}`
+- Stores endpoint: `GET /stores`
 
 Game deal data is provided by
 [CheapShark](https://www.cheapshark.com/).
-
-The first version used FreeToGame, but direct browser requests to `https://www.freetogame.com/api/games`
-did not include an `access-control-allow-origin` response header during testing.
-That means Live Server browser requests can be blocked by CORS even though the endpoint exists.
-
-The project uses Option B: CheapShark directly from the browser with no secret key or backend.
-
-During development, `js/api.js` includes a tiny temporary backup list.
-It is only used if the live CheapShark API request fails, and it should not replace the real external API integration.
 
 ## How To Run
 
@@ -67,6 +71,10 @@ gamevault/
 │   ├── router.js
 │   └── app.js
 └── assets/
+    ├── blue-galaxy-wallpaper.webp
+    ├── cat.jpg
+    ├── favicon.svg
+    └── placeholder.svg
 ```
 
 ## File Responsibilities
@@ -83,3 +91,14 @@ gamevault/
 
 - Game deal data and images: [CheapShark](https://www.cheapshark.com/)
 - Built with vanilla HTML5, CSS3, and JavaScript ES6+
+
+## Submission Checklist
+
+- [X] Site opens without console errors
+- [X] CheapShark API loads live deal data
+- [X] Loading, error, and empty-results states exist
+- [X] Responsive on mobile, tablet, and desktop
+- [X] At least 4 views are present
+- [X] README is complete
+- [X] Code is organized into `/css`, `/js`, and `/assets`
+- [X] No frameworks, build tools, API keys, or backend are used

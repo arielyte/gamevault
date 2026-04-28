@@ -1,6 +1,6 @@
 const API_BASE_URL = "https://www.cheapshark.com/api/1.0";
 const DEALS_PAGE_SIZE = 60;
-const STORE_NAMES = {
+const DEFAULT_STORE_NAMES = {
   1: "Steam",
   7: "GOG",
   11: "Humble Store",
@@ -9,46 +9,7 @@ const STORE_NAMES = {
   25: "Epic Games Store",
   30: "IndieGala"
 };
-
-let apiStatusMessage = "";
-let apiDataSource = "live";
-
-// API pivot notes:
-// Option A: Use FreeToGame through RapidAPI if API keys are allowed by the teacher.
-// Option B: Use CheapShark directly from the browser. This version uses Option B
-// because CheapShark sends CORS headers and does not require secrets for basic data.
-
-// Development backup only. These are not live API results.
-const developmentFallbackDeals = [
-  {
-    id: "development-fallback-1",
-    title: "Development Fallback Deal 1",
-    thumbnail: "./assets/blue-galaxy-wallpaper.webp",
-    short_description: "Development fallback only. Live CheapShark data did not load.",
-    game_url: "https://www.cheapshark.com/",
-    genre: "Development fallback",
-    platform: "Browser/API backup",
-    publisher: "Development fallback only",
-    developer: "Development fallback only",
-    release_date: "Unavailable",
-    description: "This temporary item appears only if the live CheapShark API request fails.",
-    screenshots: []
-  },
-  {
-    id: "development-fallback-2",
-    title: "Development Fallback Deal 2",
-    thumbnail: "./assets/blue-galaxy-wallpaper.webp",
-    short_description: "Development fallback only. Live CheapShark data did not load.",
-    game_url: "https://www.cheapshark.com/",
-    genre: "Development fallback",
-    platform: "Browser/API backup",
-    publisher: "Development fallback only",
-    developer: "Development fallback only",
-    release_date: "Unavailable",
-    description: "This temporary item appears only if the live CheapShark API request fails.",
-    screenshots: []
-  }
-];
+let storeNames = { ...DEFAULT_STORE_NAMES };
 
 async function request(path) {
   const requestUrl = `${API_BASE_URL}${path}`;
@@ -65,22 +26,19 @@ async function request(path) {
     const data = await response.json();
     const itemCount = Array.isArray(data) ? data.length : 1;
 
-    apiStatusMessage = "";
-    apiDataSource = "live";
     console.log("[GameVault API] Live API fetch succeeded.");
     console.log("[GameVault API] Items returned:", itemCount);
 
     return data;
   } catch (error) {
-    apiStatusMessage = "The live CheapShark API request failed. Showing temporary development backup data only so the interface can still be tested.";
-    apiDataSource = "fallback";
     console.error("[GameVault API] Live API fetch failed exactly here:", error);
-    console.warn("[GameVault API] Temporary development backup data is being used.");
     throw error;
   }
 }
 
 export async function getGames(filters = {}) {
+  await fetchStores();
+
   const params = new URLSearchParams();
   params.set("pageSize", DEALS_PAGE_SIZE);
 
@@ -100,51 +58,43 @@ export async function getGames(filters = {}) {
     params.set("sortBy", filters.sortBy);
   }
 
-  try {
-    const deals = await request(`/deals?${params.toString()}`);
-    const uniqueDeals = deduplicateDeals(deals);
+  const deals = await request(`/deals?${params.toString()}`);
+  const uniqueDeals = deduplicateDeals(deals);
 
-    console.log("[GameVault API] Raw CheapShark results:", deals.length);
-    console.log("[GameVault API] Unique deals after deduplication:", uniqueDeals.length);
+  console.log("[GameVault API] Raw CheapShark results:", deals.length);
+  console.log("[GameVault API] Unique deals after deduplication:", uniqueDeals.length);
 
-    return uniqueDeals.map(mapDealToGame);
-  } catch (error) {
-    console.warn("[GameVault API] Fallback games returned:", developmentFallbackDeals.length);
-    return developmentFallbackDeals;
-  }
+  return uniqueDeals.map(mapDealToGame);
 }
 
 export async function getGameDetails(id) {
-  if (id.startsWith("development-fallback")) {
-    return getFallbackDetails(id);
+  await fetchStores();
+
+  const deal = await request(`/deals?id=${id}`);
+
+  if (!deal.gameInfo) {
+    throw new Error("CheapShark did not return details for this deal.");
   }
 
-  try {
-    const deal = await request(`/deals?id=${id}`);
-    return mapDealDetailsToGame(id, deal);
-  } catch (error) {
-    return getFallbackDetails(id);
-  }
-}
-
-export function getApiStatusMessage() {
-  return apiStatusMessage;
-}
-
-export function getApiDataSource() {
-  return apiDataSource;
+  return mapDealDetailsToGame(id, deal);
 }
 
 function mapDealToGame(deal) {
   const savings = Math.round(Number(deal.savings || 0));
+  const image = getBestImageUrl(deal);
+  const fallbackImage = deal.thumb || "./assets/placeholder.svg";
 
   return {
     id: deal.dealID,
     title: deal.title,
+    image,
     thumbnail: deal.thumb,
+    fallbackImage,
     short_description: `$${deal.salePrice} deal, usually $${deal.normalPrice}. Save ${savings}%.`,
     game_url: `https://www.cheapshark.com/redirect?dealID=${deal.dealID}`,
     genre: getStoreName(deal.storeID),
+    storeName: getStoreName(deal.storeID),
+    storeId: deal.storeID,
     platform: "PC deal",
     publisher: "See store page",
     developer: "See store page",
@@ -199,38 +149,121 @@ function isBetterDeal(newDeal, savedDeal) {
 
 function mapDealDetailsToGame(id, deal) {
   const info = deal.gameInfo;
+  const image = getBestImageUrl(info);
+  const fallbackImage = info.thumb || "./assets/placeholder.svg";
+  const savings = calculateSavings(info.salePrice, info.retailPrice);
+  const releaseDate = formatUnixDate(info.releaseDate);
+  const historicalPrice = deal.cheapestPrice || {};
 
   return {
     id,
     title: info.name,
+    image,
     thumbnail: info.thumb,
-    short_description: `$${info.salePrice} deal, usually $${info.retailPrice}.`,
-    game_url: `https://www.cheapshark.com/redirect?dealID=${id}`,
+    fallbackImage,
+    short_description: createDealSummary(info.salePrice, info.retailPrice, savings),
+    game_url: createDealUrl(id),
+    dealUrl: createDealUrl(id),
     genre: getStoreName(info.storeID),
     platform: "PC deal",
-    publisher: info.publisher || "See store page",
+    publisher: cleanValue(info.publisher),
     developer: "See store page",
-    release_date: formatUnixDate(info.releaseDate),
-    description: `This is live CheapShark deal data. Current sale price is $${info.salePrice}, retail price is $${info.retailPrice}, Metacritic score is ${info.metacriticScore || "N/A"}, and Steam rating is ${info.steamRatingText || "N/A"}.`,
+    release_date: releaseDate,
+    releaseDate,
+    description: createDealOverview({
+      title: info.name,
+      salePrice: info.salePrice,
+      retailPrice: info.retailPrice,
+      savings,
+      dealRating: deal.dealRating,
+      steamRatingText: info.steamRatingText,
+      metacriticScore: info.metacriticScore
+    }),
     screenshots: [],
     salePrice: info.salePrice,
     normalPrice: info.retailPrice,
-    metacriticScore: info.metacriticScore,
-    steamRatingText: info.steamRatingText,
-    steamRatingPercent: info.steamRatingPercent,
-    steamRatingCount: info.steamRatingCount
+    retailPrice: info.retailPrice,
+    savings,
+    storeName: getStoreName(info.storeID),
+    storeId: info.storeID,
+    dealRating: deal.dealRating,
+    steamRatingText: cleanValue(info.steamRatingText),
+    steamRatingPercent: cleanValue(info.steamRatingPercent),
+    steamRatingCount: cleanValue(info.steamRatingCount),
+    metacriticScore: cleanValue(info.metacriticScore),
+    metacriticLink: createMetacriticUrl(info.metacriticLink),
+    steamAppId: cleanValue(info.steamAppID || info.steamAppId),
+    steamUrl: createSteamUrl(info.steamAppID || info.steamAppId),
+    cheaperStores: mapCheaperStores(deal.cheaperStores || []),
+    cheapestHistoricalPrice: cleanValue(historicalPrice.price),
+    cheapestHistoricalDate: formatUnixDate(historicalPrice.date)
   };
 }
 
-function getFallbackDetails(id) {
-  const fallbackDeal = developmentFallbackDeals.find((deal) => deal.id === id);
-
-  if (fallbackDeal) {
-    apiDataSource = "fallback";
-    return fallbackDeal;
+async function fetchStores() {
+  if (Object.keys(storeNames).length > Object.keys(DEFAULT_STORE_NAMES).length) {
+    return;
   }
 
-  throw new Error("The live API failed, and this item does not exist in the temporary development backup data.");
+  try {
+    const stores = await request("/stores");
+
+    stores.forEach((store) => {
+      if (store.isActive) {
+        storeNames[store.storeID] = store.storeName;
+      }
+    });
+  } catch (error) {
+    console.warn("[GameVault API] Store names could not be refreshed. Default names will be used.", error);
+  }
+}
+
+function mapCheaperStores(stores) {
+  return stores.map((store) => ({
+    storeId: store.storeID,
+    storeName: getStoreName(store.storeID),
+    salePrice: store.salePrice,
+    retailPrice: store.retailPrice,
+    savings: calculateSavings(store.salePrice, store.retailPrice),
+    dealId: store.dealID,
+    dealUrl: store.dealID ? createDealUrl(store.dealID) : ""
+  }));
+}
+
+function createDealSummary(salePrice, retailPrice, savings) {
+  if (hasValue(salePrice) && hasValue(retailPrice) && Number.isFinite(savings)) {
+    return `Currently $${salePrice} instead of $${retailPrice} — save ${savings}%.`;
+  }
+
+  if (hasValue(salePrice)) {
+    return `Current deal price: $${salePrice}.`;
+  }
+
+  return "Live CheapShark deal details.";
+}
+
+function createDealOverview(details) {
+  const sentences = [];
+
+  if (hasValue(details.salePrice) && hasValue(details.retailPrice) && Number.isFinite(details.savings)) {
+    sentences.push(`This deal lists ${details.title} for $${details.salePrice} instead of $${details.retailPrice}, saving ${details.savings}%.`);
+  } else if (hasValue(details.salePrice)) {
+    sentences.push(`This deal lists ${details.title} for $${details.salePrice}.`);
+  }
+
+  if (hasValue(details.dealRating)) {
+    sentences.push(`CheapShark rates this deal ${details.dealRating}/10.`);
+  }
+
+  if (hasValue(details.steamRatingText)) {
+    sentences.push(`The game has a ${details.steamRatingText} Steam rating.`);
+  }
+
+  if (hasValue(details.metacriticScore)) {
+    sentences.push(`Its Metacritic score is ${details.metacriticScore}.`);
+  }
+
+  return sentences.join(" ") || "CheapShark did not provide enough detail text for this deal.";
 }
 
 function formatUnixDate(timestamp) {
@@ -242,5 +275,73 @@ function formatUnixDate(timestamp) {
 }
 
 function getStoreName(storeID) {
-  return STORE_NAMES[storeID] || `Store #${storeID}`;
+  return storeNames[storeID] || `Store #${storeID}`;
+}
+
+function getBestImageUrl(gameData) {
+  const steamAppID = gameData.steamAppID || gameData.steamAppId;
+
+  if (steamAppID) {
+    return `https://cdn.cloudflare.steamstatic.com/steam/apps/${steamAppID}/header.jpg`;
+  }
+
+  if (isSteamImageUrl(gameData.thumb)) {
+    return gameData.thumb.replace(/capsule_sm_120\.jpg|capsule_231x87\.jpg/, "header.jpg");
+  }
+
+  return gameData.thumb || "./assets/placeholder.svg";
+}
+
+function isSteamImageUrl(imageUrl) {
+  if (!imageUrl) {
+    return false;
+  }
+
+  const isSteamHost = imageUrl.includes("steamstatic.com") || imageUrl.includes("akamaihd.net");
+  const isSmallCapsule = imageUrl.includes("capsule_sm_120.jpg") || imageUrl.includes("capsule_231x87.jpg");
+
+  return isSteamHost && isSmallCapsule;
+}
+
+function calculateSavings(salePrice, retailPrice) {
+  const sale = Number(salePrice);
+  const retail = Number(retailPrice);
+
+  if (!Number.isFinite(sale) || !Number.isFinite(retail) || retail <= 0) {
+    return null;
+  }
+
+  return Math.round(((retail - sale) / retail) * 100);
+}
+
+function cleanValue(value) {
+  if (value === undefined || value === null || value === "" || value === "0" || value === "N/A") {
+    return "";
+  }
+
+  return value;
+}
+
+function hasValue(value) {
+  return cleanValue(value) !== "";
+}
+
+function createDealUrl(dealId) {
+  return `https://www.cheapshark.com/redirect?dealID=${dealId}`;
+}
+
+function createSteamUrl(steamAppId) {
+  return steamAppId ? `https://store.steampowered.com/app/${steamAppId}` : "";
+}
+
+function createMetacriticUrl(path) {
+  if (!path) {
+    return "";
+  }
+
+  if (path.startsWith("http")) {
+    return path;
+  }
+
+  return `https://www.metacritic.com${path}`;
 }

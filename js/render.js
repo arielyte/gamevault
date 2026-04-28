@@ -79,32 +79,29 @@ export function renderError(app, message) {
   `;
 }
 
-export function renderEmpty(app, message = "No deals matched your search.") {
-  app.innerHTML = `
-    <section class="state-box">
-      <h2>No results</h2>
-      <p>${message}</p>
-    </section>
-  `;
-}
-
-export function renderHome(app, featuredGames, favoritesCount, notice = "", dataSource = "live", totalGames = featuredGames.length) {
+export function renderHome(app, featuredGames, favoritesCount, totalGames = featuredGames.length) {
   const cards = featuredGames.map((game) => createGameCard(game)).join("");
-  const featuredText = dataSource === "fallback"
-    ? `Temporary development backup is showing ${totalGames} sample deals while the live API is unavailable.`
-    : `Showing ${featuredGames.length} featured deals from ${totalGames} unique live CheapShark results.`;
+  const featuredText = `Showing ${featuredGames.length} featured deals from ${totalGames} unique live CheapShark results.`;
 
   app.innerHTML = `
-    ${createNotice(notice)}
-
     <section class="hero">
-      <div>
-        <h1>GameVault</h1>
-        <p>Discover live PC game deals, compare discounts, and save your favorite deals.</p>
+      <div class="hero-content">
+        <div>
+          <h1>GameVault</h1>
+          <p>Discover live PC game deals, compare discounts, and save your favorite deals.</p>
+        </div>
+        <div class="hero-actions">
+          <a class="button" href="#/browse">Browse Deals</a>
+          <a class="button secondary" href="#/favorites">View Favorites (${favoritesCount})</a>
+        </div>
       </div>
-      <div class="hero-actions">
-        <a class="button" href="#/browse">Browse Deals</a>
-        <a class="button secondary" href="#/favorites">View Favorites (${favoritesCount})</a>
+      <div class="hero-image-frame">
+        <img
+          class="hero-image"
+          src="./assets/cat.jpg"
+          alt="Cat wearing earphones"
+          onerror="this.onerror=null; this.src='./assets/placeholder.svg';"
+        >
       </div>
     </section>
 
@@ -113,13 +110,13 @@ export function renderHome(app, featuredGames, favoritesCount, notice = "", data
       <p>${featuredText}</p>
     </section>
 
-    <section class="game-grid" aria-label="Featured games">
+    <section class="game-grid" aria-label="Featured deals">
       ${cards}
     </section>
   `;
 }
 
-export function renderBrowse(app, games, filters, notice = "", dataSource = "live") {
+export function renderBrowse(app, games, filters) {
   const storeOptions = stores
     .map((store) => optionTemplate(store.value, store.label, filters.storeID))
     .join("");
@@ -127,18 +124,15 @@ export function renderBrowse(app, games, filters, notice = "", dataSource = "liv
     .map((sortOption) => optionTemplate(sortOption.value, sortOption.label, filters.sortBy))
     .join("");
   const cards = games.map((game) => createGameCard(game)).join("");
-  const resultLabel = dataSource === "fallback" ? "backup deals found" : "unique deals found";
 
   app.innerHTML = `
-    ${createNotice(notice)}
-
     <section class="page-title">
       <h1>Browse Deals</h1>
       <p>Browse discounted games from CheapShark with live search, filters, and sorting.</p>
     </section>
 
     <section class="layout-grid">
-      <aside class="panel" aria-label="Game filters">
+      <aside class="panel" aria-label="Deal filters">
         <h2>Filters</h2>
         <form id="filter-form" class="control-grid">
           <div class="field">
@@ -171,9 +165,9 @@ export function renderBrowse(app, games, filters, notice = "", dataSource = "liv
         </form>
       </aside>
 
-      <section aria-label="Game results">
+      <section aria-label="Deal results">
         <div class="results-header">
-          <strong>${games.length} ${resultLabel}</strong>
+          <strong>${games.length} unique deals found</strong>
           <span>Click a card to see more details.</span>
         </div>
         <div class="game-grid">
@@ -199,7 +193,7 @@ export function renderCategories(app) {
 
   app.innerHTML = `
     <section class="page-title">
-      <h1>Collections</h1>
+      <h1>Categories</h1>
       <p>Choose a store or deal collection to jump into a filtered Browse view.</p>
     </section>
 
@@ -208,7 +202,7 @@ export function renderCategories(app) {
         <h2 id="platform-title">Stores</h2>
         <p>Start with where you want to shop.</p>
       </div>
-      <div class="platform-grid" aria-label="Platform links">
+      <div class="platform-grid" aria-label="Store links">
         <a class="platform-card" href="#/browse?storeID=1">
           <span>Store</span>
           <strong>Steam</strong>
@@ -262,57 +256,57 @@ export function renderFavorites(app, favorites) {
       <p>Your saved deals are stored in this browser with LocalStorage.</p>
     </section>
 
-    <section class="game-grid" aria-label="Favorite games">
+    <section class="game-grid" aria-label="Favorite deals">
       ${cards}
     </section>
   `;
 }
 
 export function renderGameDetails(app, game, favorite) {
-  const screenshots = game.screenshots || [];
-  const screenshotMarkup = screenshots
-    .slice(0, 3)
-    .map((screenshot) => `<img src="${screenshot.image}" alt="Screenshot from ${game.title}">`)
-    .join("");
+  const stats = createDetailStats(game);
+  const otherDeals = createOtherDealsMarkup(game.cheaperStores || []);
 
   app.innerHTML = `
     <article class="detail-hero">
-      <img src="${game.thumbnail}" alt="${game.title} cover image">
+      <div class="detail-image-frame">
+        <img
+          class="detail-image"
+          src="${game.image || game.thumbnail || "./assets/placeholder.svg"}"
+          alt="${game.title} deal artwork"
+          onerror="this.onerror=null; this.src='${game.fallbackImage || game.thumbnail || "./assets/placeholder.svg"}';"
+        >
+      </div>
       <div class="detail-content">
         <div class="page-title">
           <h1>${game.title}</h1>
           <p>${game.short_description || "No short description available."}</p>
         </div>
 
-        <ul class="detail-list">
-          <li><strong>Store:</strong> ${game.genre || "Unknown"}</li>
-          <li><strong>Type:</strong> ${game.platform || "Unknown"}</li>
-          <li><strong>Publisher:</strong> ${game.publisher || "Unknown"}</li>
-          <li><strong>Extra info:</strong> ${game.developer || "Unknown"}</li>
-          <li><strong>Release date:</strong> ${game.release_date || "Unknown"}</li>
-        </ul>
-
         <div class="button-row">
-          <a class="button" href="${game.game_url}" target="_blank" rel="noopener noreferrer">View Deal</a>
+          <a class="button" href="${game.dealUrl || game.game_url}" target="_blank" rel="noopener noreferrer">View Deal</a>
           <button class="button ${favorite ? "danger" : "secondary"}" type="button" data-favorite-id="${game.id}">
             ${favorite ? "Remove Favorite" : "Save Favorite"}
           </button>
+          ${game.steamUrl ? `<a class="button secondary" href="${game.steamUrl}" target="_blank" rel="noopener noreferrer">Steam Page</a>` : ""}
+          ${game.metacriticLink ? `<a class="button secondary" href="${game.metacriticLink}" target="_blank" rel="noopener noreferrer">Metacritic</a>` : ""}
           <a class="button secondary" href="#/browse">Back to Browse</a>
         </div>
       </div>
     </article>
 
-    <section class="panel">
-      <h2>About ${game.title}</h2>
-      <p>${game.description || "No detailed description is available for this game."}</p>
+    <section class="detail-stats" aria-label="Deal stats">
+      ${stats}
     </section>
 
-    ${screenshotMarkup ? `
-      <section class="panel">
-        <h2>Screenshots</h2>
-        <div class="screenshot-grid">${screenshotMarkup}</div>
-      </section>
-    ` : ""}
+    <section class="panel">
+      <h2>Deal Overview</h2>
+      <p>${game.description || "CheapShark did not provide enough detail text for this deal."}</p>
+    </section>
+
+    <section class="panel">
+      <h2>Other current deals</h2>
+      ${otherDeals}
+    </section>
   `;
 }
 
@@ -323,7 +317,13 @@ export function createGameCard(game, showRemoveButton = false) {
 
   return `
     <article class="game-card">
-      <img class="game-card__image" src="${game.thumbnail}" alt="${game.title} thumbnail">
+      <img
+        class="game-card__image"
+        src="${game.image || game.thumbnail || "./assets/placeholder.svg"}"
+        alt="${game.title} deal artwork"
+        loading="lazy"
+        onerror="this.onerror=null; this.src='${game.fallbackImage || game.thumbnail || "./assets/placeholder.svg"}';"
+      >
       <div class="game-card__body">
         <h3>${game.title}</h3>
         <p>${game.short_description || "No description available."}</p>
@@ -346,19 +346,6 @@ function optionTemplate(value, label, selectedValue) {
   return `<option value="${value}" ${selected}>${formatText(label)}</option>`;
 }
 
-function createNotice(message) {
-  if (!message) {
-    return "";
-  }
-
-  return `
-    <section class="state-box notice" aria-live="polite">
-      <h2>API Notice</h2>
-      <p>${message}</p>
-    </section>
-  `;
-}
-
 function createPriceTags(game) {
   if (!game.salePrice || !game.normalPrice) {
     return "";
@@ -373,6 +360,104 @@ function createPriceTags(game) {
     <li class="tag">Was $${game.normalPrice}</li>
     ${savingsTag}
   `;
+}
+
+function createDetailStats(game) {
+  const stats = [
+    createStatCard("Sale price", formatMoney(game.salePrice), game.storeName),
+    createStatCard("Retail price", formatMoney(game.retailPrice || game.normalPrice), "Regular listed price"),
+    createStatCard("Savings", formatPercent(game.savings), "Compared with retail price"),
+    createStatCard("Store", game.storeName, game.storeId ? `Store ID ${game.storeId}` : ""),
+    createStatCard("Deal rating", game.dealRating ? `${game.dealRating}/10` : "", "CheapShark score"),
+    createStatCard("Steam rating", game.steamRatingText, createSteamRatingSubtext(game)),
+    createStatCard("Metacritic", game.metacriticScore, "Critic score"),
+    createStatCard("Historical low", formatMoney(game.cheapestHistoricalPrice), formatDateText(game.cheapestHistoricalDate))
+  ];
+
+  const visibleStats = stats.filter(Boolean).join("");
+
+  return visibleStats || `
+    <article class="stat-card">
+      <span>Details</span>
+      <strong>Not provided</strong>
+      <small>CheapShark did not provide extra deal stats.</small>
+    </article>
+  `;
+}
+
+function createStatCard(label, value, subtext = "") {
+  if (!hasDisplayValue(value)) {
+    return "";
+  }
+
+  return `
+    <article class="stat-card">
+      <span>${label}</span>
+      <strong>${value}</strong>
+      ${hasDisplayValue(subtext) ? `<small>${subtext}</small>` : ""}
+    </article>
+  `;
+}
+
+function createOtherDealsMarkup(deals) {
+  if (!deals.length) {
+    return `<p class="muted-note">No cheaper current deals found.</p>`;
+  }
+
+  const rows = deals.map((deal) => `
+    <article class="comparison-card">
+      <div>
+        <strong>${deal.storeName}</strong>
+        <span>${formatMoney(deal.salePrice)}${hasDisplayValue(deal.retailPrice) ? ` instead of ${formatMoney(deal.retailPrice)}` : ""}</span>
+      </div>
+      ${Number.isFinite(Number(deal.savings)) ? `<span class="tag">${deal.savings}% off</span>` : ""}
+      ${deal.dealUrl ? `<a class="small-button secondary" href="${deal.dealUrl}" target="_blank" rel="noopener noreferrer">View</a>` : ""}
+    </article>
+  `).join("");
+
+  return `<div class="comparison-list">${rows}</div>`;
+}
+
+function createSteamRatingSubtext(game) {
+  const parts = [];
+
+  if (hasDisplayValue(game.steamRatingPercent)) {
+    parts.push(`${game.steamRatingPercent}% positive`);
+  }
+
+  if (hasDisplayValue(game.steamRatingCount)) {
+    parts.push(`${Number(game.steamRatingCount).toLocaleString()} reviews`);
+  }
+
+  return parts.join(" from ");
+}
+
+function formatMoney(value) {
+  if (!hasDisplayValue(value)) {
+    return "";
+  }
+
+  return `$${value}`;
+}
+
+function formatPercent(value) {
+  if (!Number.isFinite(Number(value))) {
+    return "";
+  }
+
+  return `${value}%`;
+}
+
+function formatDateText(value) {
+  if (!hasDisplayValue(value) || value === "Unknown") {
+    return "";
+  }
+
+  return `Recorded on ${value}`;
+}
+
+function hasDisplayValue(value) {
+  return value !== undefined && value !== null && value !== "" && value !== "0" && value !== "N/A" && value !== "Unknown";
 }
 
 function formatText(text) {
