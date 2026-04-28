@@ -1,4 +1,4 @@
-import { getApiStatusMessage, getGameDetails, getGames } from "./api.js";
+import { getApiDataSource, getApiStatusMessage, getGameDetails, getGames } from "./api.js";
 import { addFavorite, getFavorites, isFavorite, removeFavorite } from "./storage.js";
 import {
   renderBrowse,
@@ -51,12 +51,12 @@ async function renderCurrentRoute() {
 }
 
 async function showHome() {
-  renderLoading(app, "Loading featured games...");
+  renderLoading(app, "Loading featured deals...");
 
   try {
-    const games = await getGames({ sortBy: "popularity" });
+    const games = await getGames();
     latestGames = games;
-    renderHome(app, games.slice(0, 6), getFavorites().length, getApiStatusMessage());
+    renderHome(app, games.slice(0, 6), getFavorites().length, getApiStatusMessage(), getApiDataSource(), games.length);
   } catch (error) {
     renderError(app, createApiErrorMessage(error));
   }
@@ -65,8 +65,8 @@ async function showHome() {
 async function showBrowse(query) {
   const filters = {
     search: query.get("search") || "",
-    platform: query.get("platform") || "",
-    category: query.get("category") || "",
+    storeID: query.get("storeID") || "",
+    maxPrice: query.get("maxPrice") || "",
     sortBy: query.get("sortBy") || ""
   };
 
@@ -77,10 +77,10 @@ async function showBrowse(query) {
     const visibleGames = filterGamesBySearch(latestGames, filters.search);
 
     if (visibleGames.length === 0) {
-      renderBrowse(app, [], filters, getApiStatusMessage());
+      renderBrowse(app, [], filters, getApiStatusMessage(), getApiDataSource());
       renderEmptyInsideResults();
     } else {
-      renderBrowse(app, visibleGames, filters, getApiStatusMessage());
+      renderBrowse(app, visibleGames, filters, getApiStatusMessage(), getApiDataSource());
     }
 
     connectBrowseControls();
@@ -92,12 +92,11 @@ async function showBrowse(query) {
 function showCategories() {
   renderCategories(app);
 
-  const categoryButtons = document.querySelectorAll("[data-category]");
+  const browseButtons = document.querySelectorAll("[data-browse-query]");
 
-  categoryButtons.forEach((button) => {
+  browseButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const category = button.dataset.category;
-      window.location.hash = `#/browse?category=${category}`;
+      window.location.hash = `#/browse?${button.dataset.browseQuery}`;
     });
   });
 }
@@ -181,7 +180,7 @@ function renderEmptyInsideResults() {
   grid.innerHTML = `
     <section class="state-box">
       <h2>No results</h2>
-      <p>Try changing the search text, category, platform, or sort option.</p>
+      <p>Try changing the search text, store, maximum price, or sort option.</p>
     </section>
   `;
 }
@@ -193,10 +192,13 @@ function createFavoriteSummary(game) {
     thumbnail: game.thumbnail,
     short_description: game.short_description,
     genre: game.genre,
-    platform: game.platform
+    platform: game.platform,
+    salePrice: game.salePrice,
+    normalPrice: game.normalPrice,
+    savings: game.savings
   };
 }
 
 function createApiErrorMessage(error) {
-  return `${error.message} The FreeToGame API may be blocked by the browser/CORS. Please check the console for the exact request URL and error details.`;
+  return `${error.message} Please check the console for the exact API request URL and error details.`;
 }

@@ -3,7 +3,7 @@ export function getRoute() {
   const [path, queryString = ""] = hash.slice(1).split("?");
   const parts = path.split("/").filter(Boolean);
   const page = parts[0] || "home";
-  const id = parts[1] || "";
+  const id = parts[1] ? decodeURIComponent(parts[1]) : "";
   const query = new URLSearchParams(queryString);
 
   return { page, id, query };

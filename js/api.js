@@ -1,180 +1,129 @@
-const API_BASE_URL = "https://www.freetogame.com/api";
-let apiStatusMessage = "";
+const API_BASE_URL = "https://www.cheapshark.com/api/1.0";
+const DEALS_PAGE_SIZE = 60;
+const STORE_NAMES = {
+  1: "Steam",
+  7: "GOG",
+  11: "Humble Store",
+  15: "Fanatical",
+  23: "GameBillet",
+  25: "Epic Games Store",
+  30: "IndieGala"
+};
 
-// Development fallback only. Remove before final submission if the live API/RapidAPI setup is working.
-const developmentFallbackGames = [
+let apiStatusMessage = "";
+let apiDataSource = "live";
+
+// API pivot notes:
+// Option A: Use FreeToGame through RapidAPI if API keys are allowed by the teacher.
+// Option B: Use CheapShark directly from the browser. This version uses Option B
+// because CheapShark sends CORS headers and does not require secrets for basic data.
+
+// Development backup only. These are not live API results.
+const developmentFallbackDeals = [
   {
-    id: 540,
-    title: "Overwatch 2",
-    thumbnail: "https://www.freetogame.com/g/540/thumbnail.jpg",
-    short_description: "Development fallback sample: team-based hero shooter.",
-    game_url: "https://www.freetogame.com/open/overwatch-2",
-    genre: "Shooter",
-    platform: "PC",
-    publisher: "Activision Blizzard",
-    developer: "Blizzard Entertainment",
-    release_date: "2022-10-04",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
+    id: "development-fallback-1",
+    title: "Development Fallback Deal 1",
+    thumbnail: "./assets/blue-galaxy-wallpaper.webp",
+    short_description: "Development fallback only. Live CheapShark data did not load.",
+    game_url: "https://www.cheapshark.com/",
+    genre: "Development fallback",
+    platform: "Browser/API backup",
+    publisher: "Development fallback only",
+    developer: "Development fallback only",
+    release_date: "Unavailable",
+    description: "This temporary item appears only if the live CheapShark API request fails.",
     screenshots: []
   },
   {
-    id: 516,
-    title: "PUBG: BATTLEGROUNDS",
-    thumbnail: "https://www.freetogame.com/g/516/thumbnail.jpg",
-    short_description: "Development fallback sample: battle royale shooter.",
-    game_url: "https://www.freetogame.com/open/pubg",
-    genre: "Shooter",
-    platform: "PC",
-    publisher: "KRAFTON, Inc.",
-    developer: "KRAFTON, Inc.",
-    release_date: "2022-01-12",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
-    screenshots: []
-  },
-  {
-    id: 521,
-    title: "Diablo Immortal",
-    thumbnail: "https://www.freetogame.com/g/521/thumbnail.jpg",
-    short_description: "Development fallback sample: action RPG adventure.",
-    game_url: "https://www.freetogame.com/open/diablo-immortal",
-    genre: "MMOARPG",
-    platform: "PC",
-    publisher: "Blizzard Entertainment",
-    developer: "Blizzard Entertainment",
-    release_date: "2022-06-02",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
-    screenshots: []
-  },
-  {
-    id: 517,
-    title: "Lost Ark",
-    thumbnail: "https://www.freetogame.com/g/517/thumbnail.jpg",
-    short_description: "Development fallback sample: fantasy MMORPG.",
-    game_url: "https://www.freetogame.com/open/lost-ark",
-    genre: "MMORPG",
-    platform: "PC",
-    publisher: "Amazon Games",
-    developer: "Smilegate RPG",
-    release_date: "2022-02-11",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
-    screenshots: []
-  },
-  {
-    id: 475,
-    title: "Genshin Impact",
-    thumbnail: "https://www.freetogame.com/g/475/thumbnail.jpg",
-    short_description: "Development fallback sample: open-world action RPG.",
-    game_url: "https://www.freetogame.com/open/genshin-impact",
-    genre: "Action RPG",
-    platform: "PC",
-    publisher: "miHoYo",
-    developer: "miHoYo",
-    release_date: "2020-09-28",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
-    screenshots: []
-  },
-  {
-    id: 23,
-    title: "Apex Legends",
-    thumbnail: "https://www.freetogame.com/g/23/thumbnail.jpg",
-    short_description: "Development fallback sample: fast battle royale shooter.",
-    game_url: "https://www.freetogame.com/open/apex-legends",
-    genre: "Shooter",
-    platform: "PC",
-    publisher: "Electronic Arts",
-    developer: "Respawn Entertainment",
-    release_date: "2019-02-04",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
-    screenshots: []
-  },
-  {
-    id: 57,
-    title: "Fortnite",
-    thumbnail: "https://www.freetogame.com/g/57/thumbnail.jpg",
-    short_description: "Development fallback sample: building and battle royale game.",
-    game_url: "https://www.freetogame.com/open/fortnite",
-    genre: "Shooter",
-    platform: "PC",
-    publisher: "Epic Games",
-    developer: "Epic Games",
-    release_date: "2017-09-26",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
-    screenshots: []
-  },
-  {
-    id: 213,
-    title: "RuneScape",
-    thumbnail: "https://www.freetogame.com/g/213/thumbnail.jpg",
-    short_description: "Development fallback sample: long-running browser MMORPG.",
-    game_url: "https://www.freetogame.com/open/runescape",
-    genre: "MMORPG",
-    platform: "Web Browser",
-    publisher: "Jagex",
-    developer: "Jagex",
-    release_date: "2001-01-04",
-    description: "This is temporary development fallback data used when the browser blocks the live FreeToGame API request.",
+    id: "development-fallback-2",
+    title: "Development Fallback Deal 2",
+    thumbnail: "./assets/blue-galaxy-wallpaper.webp",
+    short_description: "Development fallback only. Live CheapShark data did not load.",
+    game_url: "https://www.cheapshark.com/",
+    genre: "Development fallback",
+    platform: "Browser/API backup",
+    publisher: "Development fallback only",
+    developer: "Development fallback only",
+    release_date: "Unavailable",
+    description: "This temporary item appears only if the live CheapShark API request fails.",
     screenshots: []
   }
 ];
 
 async function request(path) {
   const requestUrl = `${API_BASE_URL}${path}`;
-  console.log("[GameVault API] Request:", requestUrl);
+  console.log("[GameVault API] Request URL:", requestUrl);
+  console.log("[GameVault API] Live API fetch starting.");
 
   try {
     const response = await fetch(requestUrl);
 
     if (!response.ok) {
-      throw new Error(`FreeToGame request failed with status ${response.status}.`);
+      throw new Error(`CheapShark request failed with status ${response.status}.`);
     }
 
+    const data = await response.json();
+    const itemCount = Array.isArray(data) ? data.length : 1;
+
     apiStatusMessage = "";
-    return response.json();
+    apiDataSource = "live";
+    console.log("[GameVault API] Live API fetch succeeded.");
+    console.log("[GameVault API] Items returned:", itemCount);
+
+    return data;
   } catch (error) {
-    console.error("[GameVault API] Request failed:", requestUrl, error);
-    apiStatusMessage = "The live FreeToGame API request may be blocked by the browser/CORS. Showing temporary development fallback data so the frontend can still be tested.";
+    apiStatusMessage = "The live CheapShark API request failed. Showing temporary development backup data only so the interface can still be tested.";
+    apiDataSource = "fallback";
+    console.error("[GameVault API] Live API fetch failed exactly here:", error);
+    console.warn("[GameVault API] Temporary development backup data is being used.");
     throw error;
   }
 }
 
 export async function getGames(filters = {}) {
   const params = new URLSearchParams();
+  params.set("pageSize", DEALS_PAGE_SIZE);
 
-  if (filters.platform) {
-    params.set("platform", filters.platform);
+  if (filters.search) {
+    params.set("title", filters.search);
   }
 
-  if (filters.category) {
-    params.set("category", filters.category);
+  if (filters.storeID) {
+    params.set("storeID", filters.storeID);
+  }
+
+  if (filters.maxPrice) {
+    params.set("upperPrice", filters.maxPrice);
   }
 
   if (filters.sortBy) {
-    params.set("sort-by", filters.sortBy);
+    params.set("sortBy", filters.sortBy);
   }
 
-  const query = params.toString();
-  const path = query ? `/games?${query}` : "/games";
-
   try {
-    return await request(path);
+    const deals = await request(`/deals?${params.toString()}`);
+    const uniqueDeals = deduplicateDeals(deals);
+
+    console.log("[GameVault API] Raw CheapShark results:", deals.length);
+    console.log("[GameVault API] Unique deals after deduplication:", uniqueDeals.length);
+
+    return uniqueDeals.map(mapDealToGame);
   } catch (error) {
-    console.warn("[GameVault API] Using development fallback game list.", error);
-    return filterFallbackGames(filters);
+    console.warn("[GameVault API] Fallback games returned:", developmentFallbackDeals.length);
+    return developmentFallbackDeals;
   }
 }
 
 export async function getGameDetails(id) {
+  if (id.startsWith("development-fallback")) {
+    return getFallbackDetails(id);
+  }
+
   try {
-    return await request(`/game?id=${encodeURIComponent(id)}`);
+    const deal = await request(`/deals?id=${id}`);
+    return mapDealDetailsToGame(id, deal);
   } catch (error) {
-    const fallbackGame = developmentFallbackGames.find((game) => String(game.id) === String(id));
-
-    if (fallbackGame) {
-      console.warn("[GameVault API] Using development fallback game details.", fallbackGame);
-      return fallbackGame;
-    }
-
-    throw new Error("The game details API may be blocked by the browser/CORS, and this game is not available in the temporary fallback data.");
+    return getFallbackDetails(id);
   }
 }
 
@@ -182,24 +131,116 @@ export function getApiStatusMessage() {
   return apiStatusMessage;
 }
 
-function filterFallbackGames(filters) {
-  let games = [...developmentFallbackGames];
+export function getApiDataSource() {
+  return apiDataSource;
+}
 
-  if (filters.platform) {
-    games = games.filter((game) => game.platform.toLowerCase().includes(filters.platform.toLowerCase()));
+function mapDealToGame(deal) {
+  const savings = Math.round(Number(deal.savings || 0));
+
+  return {
+    id: deal.dealID,
+    title: deal.title,
+    thumbnail: deal.thumb,
+    short_description: `$${deal.salePrice} deal, usually $${deal.normalPrice}. Save ${savings}%.`,
+    game_url: `https://www.cheapshark.com/redirect?dealID=${deal.dealID}`,
+    genre: getStoreName(deal.storeID),
+    platform: "PC deal",
+    publisher: "See store page",
+    developer: "See store page",
+    release_date: formatUnixDate(deal.releaseDate),
+    description: `CheapShark live deal for ${deal.title}. Sale price: $${deal.salePrice}. Normal price: $${deal.normalPrice}. Deal rating: ${deal.dealRating || "N/A"}. Steam rating: ${deal.steamRatingText || "N/A"}.`,
+    screenshots: [],
+    salePrice: deal.salePrice,
+    normalPrice: deal.normalPrice,
+    savings,
+    dealRating: deal.dealRating,
+    storeID: deal.storeID
+  };
+}
+
+function deduplicateDeals(deals) {
+  const bestDeals = new Map();
+
+  deals.forEach((deal) => {
+    const key = getDealKey(deal);
+    const savedDeal = bestDeals.get(key);
+
+    if (!savedDeal || isBetterDeal(deal, savedDeal)) {
+      bestDeals.set(key, deal);
+    }
+  });
+
+  return Array.from(bestDeals.values());
+}
+
+function getDealKey(deal) {
+  if (deal.gameID) {
+    return `game-${deal.gameID}`;
   }
 
-  if (filters.category) {
-    games = games.filter((game) => game.genre.toLowerCase().includes(filters.category.toLowerCase()));
+  return normalizeTitle(deal.title);
+}
+
+function normalizeTitle(title) {
+  return title.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isBetterDeal(newDeal, savedDeal) {
+  const newSavings = Number(newDeal.savings);
+  const savedSavings = Number(savedDeal.savings);
+
+  if (Number.isFinite(newSavings) && Number.isFinite(savedSavings) && newSavings !== savedSavings) {
+    return newSavings > savedSavings;
   }
 
-  if (filters.sortBy === "release-date") {
-    games.sort((firstGame, secondGame) => secondGame.release_date.localeCompare(firstGame.release_date));
+  return Number(newDeal.salePrice) < Number(savedDeal.salePrice);
+}
+
+function mapDealDetailsToGame(id, deal) {
+  const info = deal.gameInfo;
+
+  return {
+    id,
+    title: info.name,
+    thumbnail: info.thumb,
+    short_description: `$${info.salePrice} deal, usually $${info.retailPrice}.`,
+    game_url: `https://www.cheapshark.com/redirect?dealID=${id}`,
+    genre: getStoreName(info.storeID),
+    platform: "PC deal",
+    publisher: info.publisher || "See store page",
+    developer: "See store page",
+    release_date: formatUnixDate(info.releaseDate),
+    description: `This is live CheapShark deal data. Current sale price is $${info.salePrice}, retail price is $${info.retailPrice}, Metacritic score is ${info.metacriticScore || "N/A"}, and Steam rating is ${info.steamRatingText || "N/A"}.`,
+    screenshots: [],
+    salePrice: info.salePrice,
+    normalPrice: info.retailPrice,
+    metacriticScore: info.metacriticScore,
+    steamRatingText: info.steamRatingText,
+    steamRatingPercent: info.steamRatingPercent,
+    steamRatingCount: info.steamRatingCount
+  };
+}
+
+function getFallbackDetails(id) {
+  const fallbackDeal = developmentFallbackDeals.find((deal) => deal.id === id);
+
+  if (fallbackDeal) {
+    apiDataSource = "fallback";
+    return fallbackDeal;
   }
 
-  if (filters.sortBy === "alphabetical") {
-    games.sort((firstGame, secondGame) => firstGame.title.localeCompare(secondGame.title));
+  throw new Error("The live API failed, and this item does not exist in the temporary development backup data.");
+}
+
+function formatUnixDate(timestamp) {
+  if (!timestamp || Number(timestamp) <= 0) {
+    return "Unknown";
   }
 
-  return games;
+  return new Date(Number(timestamp) * 1000).toISOString().slice(0, 10);
+}
+
+function getStoreName(storeID) {
+  return STORE_NAMES[storeID] || `Store #${storeID}`;
 }

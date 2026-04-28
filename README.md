@@ -1,36 +1,39 @@
 # GameVault
 
-GameVault is a vanilla HTML, CSS, and JavaScript school project for discovering free-to-play games.
+GameVault is a vanilla HTML, CSS, and JavaScript school project for discovering live PC game deals.
 It uses hash routing to show different views without any framework or build tool.
 
 ## Features
 
-- Home, Browse Games, Categories, Favorites, and Game Details views
-- Dynamic game cards rendered with JavaScript
+- Home, Browse Deals, Collections, Favorites, and Deal Details views
+- Dynamic deal cards rendered with JavaScript
 - Search by title
-- Filter by platform and category
-- Sort with FreeToGame supported sort options
-- Game details page for each selected game
-- Save and remove favorites with LocalStorage
+- Filter by game store and maximum price
+- Sort with CheapShark supported sort options
+- Deal details page for each selected game
+- Save and remove favorite deals with LocalStorage
 - Loading, error, and empty-results states
 - Responsive layout for mobile, tablet, and desktop
 
 ## API Used
 
-This project uses the FreeToGame API:
+This project uses the CheapShark API because it works directly from browser `fetch`:
 
-- API base URL: `https://www.freetogame.com/api`
-- Games endpoint: `GET /games`
-- Details endpoint: `GET /game?id={game_id}`
+- API base URL: `https://www.cheapshark.com/api/1.0`
+- Deals endpoint: `GET /deals`
+- Deal details endpoint: `GET /deals?id={deal_id}`
 
-Game data is provided by
-[FreeToGame](https://www.freetogame.com/).
+Game deal data is provided by
+[CheapShark](https://www.cheapshark.com/).
 
-Note: FreeToGame mentions that CORS support may require RapidAPI in some cases.
-The API logic is isolated in `js/api.js` so the request setup can be adjusted later if needed.
+The first version used FreeToGame, but direct browser requests to `https://www.freetogame.com/api/games`
+did not include an `access-control-allow-origin` response header during testing.
+That means Live Server browser requests can be blocked by CORS even though the endpoint exists.
 
-During development, `js/api.js` includes a small temporary fallback list.
-It is only used if the live API request fails, and it should not replace the final external API integration.
+The project uses Option B: CheapShark directly from the browser with no secret key or backend.
+
+During development, `js/api.js` includes a tiny temporary backup list.
+It is only used if the live CheapShark API request fails, and it should not replace the real external API integration.
 
 ## How To Run
 
@@ -68,9 +71,9 @@ gamevault/
 
 ## File Responsibilities
 
-- `index.html` contains the page shell, semantic layout, navigation, and module script link.
+- `index.html` contains the page shell, semantic layout, navigation, favicon, and module script link.
 - `css/style.css` contains the responsive dark dashboard design.
-- `js/api.js` handles only FreeToGame API requests.
+- `js/api.js` handles only CheapShark API requests.
 - `js/storage.js` handles only LocalStorage favorites.
 - `js/render.js` creates HTML for states, cards, and views.
 - `js/router.js` reads hash routes and updates active navigation links.
@@ -78,5 +81,5 @@ gamevault/
 
 ## Credits
 
-- Game data and images: [FreeToGame](https://www.freetogame.com/)
+- Game deal data and images: [CheapShark](https://www.cheapshark.com/)
 - Built with vanilla HTML5, CSS3, and JavaScript ES6+
