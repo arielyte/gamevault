@@ -50,7 +50,7 @@ export async function getGames(filters = {}) {
     params.set("storeID", filters.storeID);
   }
 
-  if (filters.maxPrice) {
+  if (filters.maxPrice && filters.maxPrice !== "free") {
     params.set("upperPrice", filters.maxPrice);
   }
 
@@ -80,9 +80,13 @@ export async function getGameDetails(id) {
 }
 
 function mapDealToGame(deal) {
+  const salePriceValue = normalizePrice(deal.salePrice);
+  const normalPriceValue = normalizePrice(deal.normalPrice);
   const savings = Math.round(Number(deal.savings || 0));
   const image = getBestImageUrl(deal);
   const fallbackImage = deal.thumb || "./assets/placeholder.svg";
+  const dealSummary = createDealSummary(deal.salePrice, deal.normalPrice, savings);
+  const salePriceText = formatPriceText(deal.salePrice);
 
   return {
     id: deal.dealID,
@@ -90,7 +94,7 @@ function mapDealToGame(deal) {
     image,
     thumbnail: deal.thumb,
     fallbackImage,
-    short_description: `$${deal.salePrice} deal, usually $${deal.normalPrice}. Save ${savings}%.`,
+    short_description: dealSummary,
     game_url: `https://www.cheapshark.com/redirect?dealID=${deal.dealID}`,
     genre: getStoreName(deal.storeID),
     storeName: getStoreName(deal.storeID),
@@ -99,10 +103,12 @@ function mapDealToGame(deal) {
     publisher: "See store page",
     developer: "See store page",
     release_date: formatUnixDate(deal.releaseDate),
-    description: `CheapShark live deal for ${deal.title}. Sale price: $${deal.salePrice}. Normal price: $${deal.normalPrice}. Deal rating: ${deal.dealRating || "N/A"}. Steam rating: ${deal.steamRatingText || "N/A"}.`,
+    description: `CheapShark live deal for ${deal.title}. Sale price: ${salePriceText}. Normal price: $${deal.normalPrice}. Deal rating: ${deal.dealRating || "N/A"}. Steam rating: ${deal.steamRatingText || "N/A"}.`,
     screenshots: [],
     salePrice: deal.salePrice,
+    salePriceValue,
     normalPrice: deal.normalPrice,
+    normalPriceValue,
     savings,
     dealRating: deal.dealRating,
     storeID: deal.storeID
@@ -151,6 +157,8 @@ function mapDealDetailsToGame(id, deal) {
   const info = deal.gameInfo;
   const image = getBestImageUrl(info);
   const fallbackImage = info.thumb || "./assets/placeholder.svg";
+  const salePriceValue = normalizePrice(info.salePrice);
+  const retailPriceValue = normalizePrice(info.retailPrice);
   const savings = calculateSavings(info.salePrice, info.retailPrice);
   const releaseDate = formatUnixDate(info.releaseDate);
   const historicalPrice = deal.cheapestPrice || {};
@@ -181,8 +189,11 @@ function mapDealDetailsToGame(id, deal) {
     }),
     screenshots: [],
     salePrice: info.salePrice,
+    salePriceValue,
     normalPrice: info.retailPrice,
+    normalPriceValue: retailPriceValue,
     retailPrice: info.retailPrice,
+    retailPriceValue,
     savings,
     storeName: getStoreName(info.storeID),
     storeId: info.storeID,
@@ -223,7 +234,9 @@ function mapCheaperStores(stores) {
     storeId: store.storeID,
     storeName: getStoreName(store.storeID),
     salePrice: store.salePrice,
+    salePriceValue: normalizePrice(store.salePrice),
     retailPrice: store.retailPrice,
+    retailPriceValue: normalizePrice(store.retailPrice),
     savings: calculateSavings(store.salePrice, store.retailPrice),
     dealId: store.dealID,
     dealUrl: store.dealID ? createDealUrl(store.dealID) : ""
@@ -231,11 +244,19 @@ function mapCheaperStores(stores) {
 }
 
 function createDealSummary(salePrice, retailPrice, savings) {
-  if (hasValue(salePrice) && hasValue(retailPrice) && Number.isFinite(savings)) {
+  if (hasPriceValue(salePrice) && hasPriceValue(retailPrice) && Number.isFinite(savings)) {
+    if (normalizePrice(salePrice) === 0) {
+      return `FREE, usually $${retailPrice}. Save ${savings}%.`;
+    }
+
     return `Currently $${salePrice} instead of $${retailPrice} — save ${savings}%.`;
   }
 
-  if (hasValue(salePrice)) {
+  if (hasPriceValue(salePrice)) {
+    if (normalizePrice(salePrice) === 0) {
+      return "Current deal price: FREE.";
+    }
+
     return `Current deal price: $${salePrice}.`;
   }
 
@@ -245,10 +266,14 @@ function createDealSummary(salePrice, retailPrice, savings) {
 function createDealOverview(details) {
   const sentences = [];
 
-  if (hasValue(details.salePrice) && hasValue(details.retailPrice) && Number.isFinite(details.savings)) {
-    sentences.push(`This deal lists ${details.title} for $${details.salePrice} instead of $${details.retailPrice}, saving ${details.savings}%.`);
-  } else if (hasValue(details.salePrice)) {
-    sentences.push(`This deal lists ${details.title} for $${details.salePrice}.`);
+  if (hasPriceValue(details.salePrice) && hasPriceValue(details.retailPrice) && Number.isFinite(details.savings)) {
+    if (normalizePrice(details.salePrice) === 0) {
+      sentences.push(`This deal lists ${details.title} for FREE instead of $${details.retailPrice}, saving ${details.savings}%.`);
+    } else {
+      sentences.push(`This deal lists ${details.title} for $${details.salePrice} instead of $${details.retailPrice}, saving ${details.savings}%.`);
+    }
+  } else if (hasPriceValue(details.salePrice)) {
+    sentences.push(`This deal lists ${details.title} for ${formatPriceText(details.salePrice)}.`);
   }
 
   if (hasValue(details.dealRating)) {
@@ -312,6 +337,20 @@ function calculateSavings(salePrice, retailPrice) {
   }
 
   return Math.round(((retail - sale) / retail) * 100);
+}
+
+function normalizePrice(price) {
+  const value = Number(price);
+
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatPriceText(price) {
+  return normalizePrice(price) === 0 ? "FREE" : `$${price}`;
+}
+
+function hasPriceValue(value) {
+  return value !== undefined && value !== null && value !== "" && value !== "N/A" && Number.isFinite(Number(value));
 }
 
 function cleanValue(value) {

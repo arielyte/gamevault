@@ -71,7 +71,7 @@ async function showBrowse(query) {
 
   try {
     const games = await getGames(filters);
-    const visibleGames = filterGamesBySearch(games, filters.search);
+    const visibleGames = applyBrowseFilters(games, filters);
 
     if (visibleGames.length === 0) {
       renderBrowse(app, [], filters);
@@ -161,6 +161,10 @@ function connectFavoriteButton(game) {
   });
 }
 
+function applyBrowseFilters(games, filters) {
+  return filterGamesByMaxPrice(filterGamesBySearch(games, filters.search), filters.maxPrice);
+}
+
 function filterGamesBySearch(games, searchTerm) {
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -169,6 +173,18 @@ function filterGamesBySearch(games, searchTerm) {
   }
 
   return games.filter((game) => game.title.toLowerCase().includes(normalizedSearch));
+}
+
+function filterGamesByMaxPrice(games, maxPrice) {
+  if (maxPrice !== "free") {
+    return games;
+  }
+
+  return games.filter((game) => {
+    const salePrice = Number(game.salePriceValue ?? game.salePrice);
+
+    return Number.isFinite(salePrice) && salePrice === 0;
+  });
 }
 
 function renderEmptyInsideResults() {
@@ -191,7 +207,9 @@ function createFavoriteSummary(game) {
     genre: game.genre,
     platform: game.platform,
     salePrice: game.salePrice,
+    salePriceValue: game.salePriceValue,
     normalPrice: game.normalPrice,
+    normalPriceValue: game.normalPriceValue,
     savings: game.savings
   };
 }

@@ -126,13 +126,13 @@ export function renderBrowse(app, games, filters) {
   const cards = games.map((game) => createGameCard(game)).join("");
 
   app.innerHTML = `
-    <section class="page-title">
+    <section class="page-title browse-page-title">
       <h1>Browse Deals</h1>
       <p>Browse discounted games from CheapShark with live search, filters, and sorting.</p>
     </section>
 
-    <section class="layout-grid">
-      <aside class="panel" aria-label="Deal filters">
+    <section class="browse-layout">
+      <section class="panel browse-filter-panel" aria-label="Deal filters">
         <h2>Filters</h2>
         <form id="filter-form" class="control-grid">
           <div class="field">
@@ -149,6 +149,7 @@ export function renderBrowse(app, games, filters) {
             <label for="max-price">Maximum price</label>
             <select id="max-price" name="maxPrice">
               <option value="" ${filters.maxPrice === "" ? "selected" : ""}>Any price</option>
+              <option value="free" ${filters.maxPrice === "free" ? "selected" : ""}>Free</option>
               <option value="5" ${filters.maxPrice === "5" ? "selected" : ""}>Under $5</option>
               <option value="10" ${filters.maxPrice === "10" ? "selected" : ""}>Under $10</option>
               <option value="20" ${filters.maxPrice === "20" ? "selected" : ""}>Under $20</option>
@@ -163,7 +164,7 @@ export function renderBrowse(app, games, filters) {
           <button class="button" type="submit">Apply</button>
           <button class="button secondary" type="button" id="clear-filters">Clear</button>
         </form>
-      </aside>
+      </section>
 
       <section aria-label="Deal results">
         <div class="results-header">
@@ -265,6 +266,7 @@ export function renderFavorites(app, favorites) {
 export function renderGameDetails(app, game, favorite) {
   const stats = createDetailStats(game);
   const otherDeals = createOtherDealsMarkup(game.cheaperStores || []);
+  const freeBadge = isFreeDeal(game) ? `<span class="free-badge detail-free-badge">FREE</span>` : "";
 
   app.innerHTML = `
     <article class="detail-hero">
@@ -278,6 +280,7 @@ export function renderGameDetails(app, game, favorite) {
       </div>
       <div class="detail-content">
         <div class="page-title">
+          ${freeBadge}
           <h1>${game.title}</h1>
           <p>${game.short_description || "No short description available."}</p>
         </div>
@@ -314,9 +317,11 @@ export function createGameCard(game, showRemoveButton = false) {
   const favoriteButton = showRemoveButton
     ? `<button class="small-button danger" type="button" data-remove-favorite="${game.id}">Remove</button>`
     : "";
+  const freeBadge = isFreeDeal(game) ? `<span class="free-badge card-free-badge">FREE</span>` : "";
 
   return `
     <article class="game-card">
+      ${freeBadge}
       <img
         class="game-card__image"
         src="${game.image || game.thumbnail || "./assets/placeholder.svg"}"
@@ -347,17 +352,20 @@ function optionTemplate(value, label, selectedValue) {
 }
 
 function createPriceTags(game) {
-  if (!game.salePrice || !game.normalPrice) {
+  if (!hasPriceValue(game.salePrice) || !hasPriceValue(game.normalPrice)) {
     return "";
   }
 
   const savingsTag = Number.isFinite(Number(game.savings))
     ? `<li class="tag">${game.savings}% off</li>`
     : "";
+  const priceTag = isFreeDeal(game)
+    ? `<li class="tag free-price-tag">FREE</li>`
+    : `<li class="tag">${formatMoney(game.salePrice)}</li>`;
 
   return `
-    <li class="tag">$${game.salePrice}</li>
-    <li class="tag">Was $${game.normalPrice}</li>
+    ${priceTag}
+    <li class="tag">Was ${formatMoney(game.normalPrice)}</li>
     ${savingsTag}
   `;
 }
@@ -408,8 +416,9 @@ function createOtherDealsMarkup(deals) {
     <article class="comparison-card">
       <div>
         <strong>${deal.storeName}</strong>
-        <span>${formatMoney(deal.salePrice)}${hasDisplayValue(deal.retailPrice) ? ` instead of ${formatMoney(deal.retailPrice)}` : ""}</span>
+        <span>${formatDealPriceLine(deal)}</span>
       </div>
+      ${isFreeDeal(deal) ? `<span class="free-badge">FREE</span>` : ""}
       ${Number.isFinite(Number(deal.savings)) ? `<span class="tag">${deal.savings}% off</span>` : ""}
       ${deal.dealUrl ? `<a class="small-button secondary" href="${deal.dealUrl}" target="_blank" rel="noopener noreferrer">View</a>` : ""}
     </article>
@@ -433,11 +442,26 @@ function createSteamRatingSubtext(game) {
 }
 
 function formatMoney(value) {
-  if (!hasDisplayValue(value)) {
+  if (!hasPriceValue(value)) {
     return "";
   }
 
+  if (Number(value) === 0) {
+    return "FREE";
+  }
+
   return `$${value}`;
+}
+
+function formatDealPriceLine(deal) {
+  const salePrice = formatMoney(deal.salePrice);
+  const retailPrice = formatMoney(deal.retailPrice);
+
+  if (!salePrice) {
+    return "";
+  }
+
+  return retailPrice ? `${salePrice} instead of ${retailPrice}` : salePrice;
 }
 
 function formatPercent(value) {
@@ -458,6 +482,16 @@ function formatDateText(value) {
 
 function hasDisplayValue(value) {
   return value !== undefined && value !== null && value !== "" && value !== "0" && value !== "N/A" && value !== "Unknown";
+}
+
+function hasPriceValue(value) {
+  return value !== undefined && value !== null && value !== "" && value !== "N/A" && value !== "Unknown" && Number.isFinite(Number(value));
+}
+
+function isFreeDeal(deal) {
+  const salePrice = Number(deal.salePriceValue ?? deal.salePrice);
+
+  return Number.isFinite(salePrice) && salePrice === 0;
 }
 
 function formatText(text) {
