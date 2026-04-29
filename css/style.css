@@ -277,7 +277,8 @@ main:focus,
   margin-bottom: 20px;
 }
 
-.browse-page-title {
+.browse-page-title,
+.featured-page-title {
   justify-items: center;
   text-align: center;
 }

@@ -100,12 +100,12 @@ export function renderHome(app, featuredGames, favoritesCount, totalGames = feat
           class="hero-image"
           src="./assets/cat.jpg"
           alt="Cat wearing earphones"
-          onerror="this.onerror=null; this.src='./assets/placeholder.svg';"
+          onerror="this.onerror=null; this.src='./assets/placeholder.png';"
         >
       </div>
     </section>
 
-    <section class="page-title" aria-labelledby="featured-title">
+    <section class="page-title featured-page-title" aria-labelledby="featured-title">
       <h2 id="featured-title">Featured Deals</h2>
       <p>${featuredText}</p>
     </section>
@@ -264,6 +264,11 @@ export function renderFavorites(app, favorites) {
 }
 
 export function renderGameDetails(app, game, favorite) {
+  if (game.isValidDeal === false) {
+    renderExpiredDeal(app);
+    return;
+  }
+
   const stats = createDetailStats(game);
   const otherDeals = createOtherDealsMarkup(game.cheaperStores || []);
   const freeBadge = isFreeDeal(game) ? `<span class="free-badge detail-free-badge">FREE</span>` : "";
@@ -273,9 +278,9 @@ export function renderGameDetails(app, game, favorite) {
       <div class="detail-image-frame">
         <img
           class="detail-image"
-          src="${game.image || game.thumbnail || "./assets/placeholder.svg"}"
+          src="${game.image || game.thumbnail || "./assets/placeholder.png"}"
           alt="${game.title} deal artwork"
-          onerror="this.onerror=null; this.src='${game.fallbackImage || game.thumbnail || "./assets/placeholder.svg"}';"
+          onerror="this.onerror=null; this.src='${game.fallbackImage || game.thumbnail || "./assets/placeholder.png"}';"
         >
       </div>
       <div class="detail-content">
@@ -313,25 +318,38 @@ export function renderGameDetails(app, game, favorite) {
   `;
 }
 
+function renderExpiredDeal(app) {
+  app.innerHTML = `
+    <section class="state-box" aria-live="polite">
+      <h1>This deal is no longer discounted.</h1>
+      <p>GameVault only displays active discounted PC game deals.</p>
+      <a class="button" href="#/browse">Back to Browse</a>
+    </section>
+  `;
+}
+
 export function createGameCard(game, showRemoveButton = false) {
   const favoriteButton = showRemoveButton
     ? `<button class="small-button danger" type="button" data-remove-favorite="${game.id}">Remove</button>`
     : "";
   const freeBadge = isFreeDeal(game) ? `<span class="free-badge card-free-badge">FREE</span>` : "";
+  const description = isDiscountedDeal(game)
+    ? game.short_description || "No description available."
+    : "This deal is no longer discounted.";
 
   return `
     <article class="game-card">
       ${freeBadge}
       <img
         class="game-card__image"
-        src="${game.image || game.thumbnail || "./assets/placeholder.svg"}"
+        src="${game.image || game.thumbnail || "./assets/placeholder.png"}"
         alt="${game.title} deal artwork"
         loading="lazy"
-        onerror="this.onerror=null; this.src='${game.fallbackImage || game.thumbnail || "./assets/placeholder.svg"}';"
+        onerror="this.onerror=null; this.src='${game.fallbackImage || game.thumbnail || "./assets/placeholder.png"}';"
       >
       <div class="game-card__body">
         <h3>${game.title}</h3>
-        <p>${game.short_description || "No description available."}</p>
+        <p>${description}</p>
         <ul class="tag-list">
           ${createPriceTags(game)}
           <li class="tag">${game.genre || "Unknown"}</li>
@@ -356,7 +374,11 @@ function createPriceTags(game) {
     return "";
   }
 
-  const savingsTag = Number.isFinite(Number(game.savings))
+  if (!isDiscountedDeal(game)) {
+    return "";
+  }
+
+  const savingsTag = Number(game.savings) > 0
     ? `<li class="tag">${game.savings}% off</li>`
     : "";
   const priceTag = isFreeDeal(game)
@@ -408,18 +430,20 @@ function createStatCard(label, value, subtext = "") {
 }
 
 function createOtherDealsMarkup(deals) {
-  if (!deals.length) {
+  const validDeals = deals.filter(isDiscountedDeal);
+
+  if (!validDeals.length) {
     return `<p class="muted-note">No cheaper current deals found.</p>`;
   }
 
-  const rows = deals.map((deal) => `
+  const rows = validDeals.map((deal) => `
     <article class="comparison-card">
       <div>
         <strong>${deal.storeName}</strong>
         <span>${formatDealPriceLine(deal)}</span>
       </div>
       ${isFreeDeal(deal) ? `<span class="free-badge">FREE</span>` : ""}
-      ${Number.isFinite(Number(deal.savings)) ? `<span class="tag">${deal.savings}% off</span>` : ""}
+      ${Number(deal.savings) > 0 ? `<span class="tag">${deal.savings}% off</span>` : ""}
       ${deal.dealUrl ? `<a class="small-button secondary" href="${deal.dealUrl}" target="_blank" rel="noopener noreferrer">View</a>` : ""}
     </article>
   `).join("");
@@ -490,8 +514,32 @@ function hasPriceValue(value) {
 
 function isFreeDeal(deal) {
   const salePrice = Number(deal.salePriceValue ?? deal.salePrice);
+  const retailPrice = Number(deal.retailPriceValue ?? deal.retailPrice ?? deal.normalPriceValue ?? deal.normalPrice);
+  const savings = Number(deal.savings);
 
-  return Number.isFinite(salePrice) && salePrice === 0;
+  return (
+    Number.isFinite(salePrice) &&
+    Number.isFinite(retailPrice) &&
+    Number.isFinite(savings) &&
+    salePrice === 0 &&
+    retailPrice > 0 &&
+    savings > 0
+  );
+}
+
+function isDiscountedDeal(deal) {
+  const salePrice = Number(deal.salePriceValue ?? deal.salePrice);
+  const retailPrice = Number(deal.retailPriceValue ?? deal.retailPrice ?? deal.normalPriceValue ?? deal.normalPrice);
+  const savings = Number(deal.savings);
+
+  return (
+    Number.isFinite(salePrice) &&
+    Number.isFinite(retailPrice) &&
+    Number.isFinite(savings) &&
+    retailPrice > 0 &&
+    salePrice < retailPrice &&
+    savings > 0
+  );
 }
 
 function formatText(text) {

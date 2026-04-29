@@ -2,7 +2,7 @@
 
 Student name: Ariel Veitsman
 
-GameVault is a responsive game discovery and deals vault. It uses live data from the CheapShark API so users can browse discounted PC games, search and filter deals, open deal details, and save favorite deals in the browser.
+GameVault is a responsive game discovery and deals vault. It uses live data from the CheapShark API so users can browse active discounted PC game deals, search and filter deals, open deal details, and save favorite deals in the browser.
 
 The project uses vanilla HTML, CSS, and JavaScript only. It does not use frameworks, npm packages, build tools, or a backend server.
 

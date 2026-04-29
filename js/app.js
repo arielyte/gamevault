@@ -1,4 +1,4 @@
-import { getGameDetails, getGames } from "./api.js";
+import { getGameDetails, getGames, isValidDeal } from "./api.js";
 import { addFavorite, getFavorites, isFavorite, removeFavorite } from "./storage.js";
 import {
   renderBrowse,
@@ -149,6 +149,10 @@ function connectBrowseControls() {
 function connectFavoriteButton(game) {
   const button = document.querySelector("[data-favorite-id]");
 
+  if (!button) {
+    return;
+  }
+
   button.addEventListener("click", () => {
     if (isFavorite(game.id)) {
       removeFavorite(game.id);
@@ -183,7 +187,7 @@ function filterGamesByMaxPrice(games, maxPrice) {
   return games.filter((game) => {
     const salePrice = Number(game.salePriceValue ?? game.salePrice);
 
-    return Number.isFinite(salePrice) && salePrice === 0;
+    return Number.isFinite(salePrice) && salePrice === 0 && isValidDeal(game);
   });
 }
 
@@ -192,7 +196,7 @@ function renderEmptyInsideResults() {
   const grid = resultsArea.querySelector(".game-grid");
   grid.innerHTML = `
     <section class="state-box">
-      <h2>No results</h2>
+      <h2>No discounted deals found.</h2>
       <p>Try changing the search text, store, maximum price, or sort option.</p>
     </section>
   `;

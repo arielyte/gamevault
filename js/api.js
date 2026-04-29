@@ -59,12 +59,15 @@ export async function getGames(filters = {}) {
   }
 
   const deals = await request(`/deals?${params.toString()}`);
-  const uniqueDeals = deduplicateDeals(deals);
+  const normalizedDeals = deals.map(mapDealToGame);
+  const validDeals = normalizedDeals.filter(isValidDeal);
+  const uniqueDeals = deduplicateDeals(validDeals);
 
   console.log("[GameVault API] Raw CheapShark results:", deals.length);
-  console.log("[GameVault API] Unique deals after deduplication:", uniqueDeals.length);
+  console.log("[GameVault API] Valid discounted deals:", validDeals.length);
+  console.log("[GameVault API] Unique discounted deals after deduplication:", uniqueDeals.length);
 
-  return uniqueDeals.map(mapDealToGame);
+  return uniqueDeals;
 }
 
 export async function getGameDetails(id) {
@@ -84,12 +87,13 @@ function mapDealToGame(deal) {
   const normalPriceValue = normalizePrice(deal.normalPrice);
   const savings = Math.round(Number(deal.savings || 0));
   const image = getBestImageUrl(deal);
-  const fallbackImage = deal.thumb || "./assets/placeholder.svg";
+  const fallbackImage = deal.thumb || "./assets/placeholder.png";
   const dealSummary = createDealSummary(deal.salePrice, deal.normalPrice, savings);
   const salePriceText = formatPriceText(deal.salePrice);
 
   return {
     id: deal.dealID,
+    gameId: deal.gameID,
     title: deal.title,
     image,
     thumbnail: deal.thumb,
@@ -110,9 +114,25 @@ function mapDealToGame(deal) {
     normalPrice: deal.normalPrice,
     normalPriceValue,
     savings,
+    isValidDeal: true,
     dealRating: deal.dealRating,
     storeID: deal.storeID
   };
+}
+
+export function isValidDeal(deal) {
+  const salePrice = Number(deal.salePriceValue ?? deal.salePrice);
+  const retailPrice = Number(deal.retailPriceValue ?? deal.retailPrice ?? deal.normalPriceValue ?? deal.normalPrice);
+  const savings = Number(deal.savings);
+
+  return (
+    Number.isFinite(salePrice) &&
+    Number.isFinite(retailPrice) &&
+    Number.isFinite(savings) &&
+    retailPrice > 0 &&
+    salePrice < retailPrice &&
+    savings > 0
+  );
 }
 
 function deduplicateDeals(deals) {
@@ -131,8 +151,8 @@ function deduplicateDeals(deals) {
 }
 
 function getDealKey(deal) {
-  if (deal.gameID) {
-    return `game-${deal.gameID}`;
+  if (deal.gameID || deal.gameId) {
+    return `game-${deal.gameID || deal.gameId}`;
   }
 
   return normalizeTitle(deal.title);
@@ -156,12 +176,17 @@ function isBetterDeal(newDeal, savedDeal) {
 function mapDealDetailsToGame(id, deal) {
   const info = deal.gameInfo;
   const image = getBestImageUrl(info);
-  const fallbackImage = info.thumb || "./assets/placeholder.svg";
+  const fallbackImage = info.thumb || "./assets/placeholder.png";
   const salePriceValue = normalizePrice(info.salePrice);
   const retailPriceValue = normalizePrice(info.retailPrice);
   const savings = calculateSavings(info.salePrice, info.retailPrice);
   const releaseDate = formatUnixDate(info.releaseDate);
   const historicalPrice = deal.cheapestPrice || {};
+  const validDeal = isValidDeal({
+    salePrice: info.salePrice,
+    retailPrice: info.retailPrice,
+    savings
+  });
 
   return {
     id,
@@ -195,6 +220,7 @@ function mapDealDetailsToGame(id, deal) {
     retailPrice: info.retailPrice,
     retailPriceValue,
     savings,
+    isValidDeal: validDeal,
     storeName: getStoreName(info.storeID),
     storeId: info.storeID,
     dealRating: deal.dealRating,
@@ -205,7 +231,7 @@ function mapDealDetailsToGame(id, deal) {
     metacriticLink: createMetacriticUrl(info.metacriticLink),
     steamAppId: cleanValue(info.steamAppID || info.steamAppId),
     steamUrl: createSteamUrl(info.steamAppID || info.steamAppId),
-    cheaperStores: mapCheaperStores(deal.cheaperStores || []),
+    cheaperStores: mapCheaperStores(deal.cheaperStores || []).filter(isValidDeal),
     cheapestHistoricalPrice: cleanValue(historicalPrice.price),
     cheapestHistoricalDate: formatUnixDate(historicalPrice.date)
   };
@@ -244,12 +270,12 @@ function mapCheaperStores(stores) {
 }
 
 function createDealSummary(salePrice, retailPrice, savings) {
-  if (hasPriceValue(salePrice) && hasPriceValue(retailPrice) && Number.isFinite(savings)) {
+  if (isValidDeal({ salePrice, retailPrice, savings })) {
     if (normalizePrice(salePrice) === 0) {
-      return `FREE, usually $${retailPrice}. Save ${savings}%.`;
+      return `FREE, usually $${retailPrice} - save ${savings}%.`;
     }
 
-    return `Currently $${salePrice} instead of $${retailPrice} — save ${savings}%.`;
+    return `Currently $${salePrice} instead of $${retailPrice} - save ${savings}%.`;
   }
 
   if (hasPriceValue(salePrice)) {
@@ -266,7 +292,7 @@ function createDealSummary(salePrice, retailPrice, savings) {
 function createDealOverview(details) {
   const sentences = [];
 
-  if (hasPriceValue(details.salePrice) && hasPriceValue(details.retailPrice) && Number.isFinite(details.savings)) {
+  if (isValidDeal(details)) {
     if (normalizePrice(details.salePrice) === 0) {
       sentences.push(`This deal lists ${details.title} for FREE instead of $${details.retailPrice}, saving ${details.savings}%.`);
     } else {
@@ -314,7 +340,7 @@ function getBestImageUrl(gameData) {
     return gameData.thumb.replace(/capsule_sm_120\.jpg|capsule_231x87\.jpg/, "header.jpg");
   }
 
-  return gameData.thumb || "./assets/placeholder.svg";
+  return gameData.thumb || "./assets/placeholder.png";
 }
 
 function isSteamImageUrl(imageUrl) {
