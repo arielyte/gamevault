@@ -73,8 +73,8 @@ gamevault/
 └── assets/
     ├── blue-galaxy-wallpaper.webp
     ├── cat.jpg
-    ├── favicon.svg
-    └── placeholder.svg
+    ├── favicon.png
+    └── placeholder.png
 ```
 
 ## File Responsibilities
