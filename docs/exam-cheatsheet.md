@@ -6,9 +6,9 @@ GameVault is a responsive vanilla HTML, CSS, and JavaScript website that helps u
 
 ## 2-Minute Project Explanation
 
-GameVault is a single-page style static website built without frameworks, packages, backend code, or build tools. The permanent HTML shell is in `index.html`, and the dynamic views are rendered inside `<main id="app">`.
+GameVault is a multi-page static website built without frameworks, packages, backend code, or build tools. The required pages are `index.html`, `browse.html`, `categories.html`, and `favorites.html`, with `details.html` used for individual deal details. Each page has its own semantic HTML shell and renders its content inside `<main id="app">`.
 
-Routing is hash-based. `router.js` reads URLs like `#/home`, `#/browse?storeID=1`, and `#/game/{dealID}`. `app.js` is the controller: it reads the route, calls the CheapShark API through `api.js`, sends normalized data to `render.js`, and connects event listeners after rendering.
+Navigation uses normal HTML files and URL query parameters. `router.js` reads the current page from `body data-page` or the file name, reads filters from `window.location.search`, and updates the active nav link. `app.js` is the controller: it reads the current page, calls the CheapShark API through `api.js`, sends normalized data to `render.js`, and connects event listeners after rendering.
 
 `api.js` loads deals from CheapShark, maps raw API fields into the object shape the UI expects, filters invalid deals with `isValidDeal()`, and deduplicates repeated games with `deduplicateDeals()`. `storage.js` saves and removes favorites using LocalStorage under `gamevault-favorites`.
 
@@ -18,11 +18,15 @@ The site has Home, Browse, Categories, Favorites, and Details views. Browse supp
 
 | File | Responsibility |
 | --- | --- |
-| `index.html` | Static page shell, header/nav, `#app` container, footer, stylesheet, ES module script. |
+| `index.html` | Home page shell, header/nav, `#app` container, footer, stylesheet, ES module script. |
+| `browse.html` | Browse page shell. Filters are read from the normal query string. |
+| `categories.html` | Categories page shell. Category links navigate to `browse.html?...`. |
+| `favorites.html` | Favorites page shell. Saved deals are loaded from LocalStorage. |
+| `details.html` | Deal details page shell. The deal ID comes from `details.html?id={dealID}`. |
 | `css/style.css` | All responsive layout and visual design: galaxy background, glass panels, grids, cards, forms, details, focus states. |
 | `js/app.js` | Main controller connecting router, API, rendering, filters, categories, and favorites. |
 | `js/api.js` | CheapShark requests, data normalization, valid deal filtering, deduplication, detail mapping, URL helpers. |
-| `js/router.js` | Hash route parsing, active nav state, route change listener. |
+| `js/router.js` | Current page detection, query string helpers, details ID helper, active nav state. |
 | `js/render.js` | Dynamic HTML templates for all views, cards, stats, tags, loading/error/empty states. |
 | `js/storage.js` | LocalStorage favorites: read, save, check, add, remove. |
 | `README.md` | Human-facing project summary, setup, features, API, structure, checklist. |
@@ -32,13 +36,13 @@ The site has Home, Browse, Categories, Favorites, and Details views. Browse supp
 
 | Function | File | What to Say |
 | --- | --- | --- |
-| `renderCurrentRoute()` | `app.js` | Reads the current route and chooses which view function to run. |
+| `renderCurrentPage()` | `app.js` | Reads the current page and chooses which view function to run. |
 | `showHome()` | `app.js` | Loads deals, takes the first 6, and renders Home. |
 | `showBrowse(query)` | `app.js` | Builds filters from the URL, loads deals, applies client filters, renders Browse, connects form. |
 | `showCategories()` | `app.js` | Renders category/store shortcuts and connects collection buttons to Browse routes. |
 | `showFavorites()` | `app.js` | Reads favorites from LocalStorage, renders them, connects remove buttons. |
-| `showGameDetails(gameId)` | `app.js` | Loads one deal by ID and renders the Details view. |
-| `connectBrowseControls()` | `app.js` | Turns form values into hash query parameters. |
+| `showGameDetails(gameId)` | `app.js` | Loads one deal by ID and renders the Details page. |
+| `connectBrowseControls()` | `app.js` | Turns form values into normal `browse.html?...` query parameters. |
 | `connectFavoriteButton(game)` | `app.js` | Saves/removes the current details deal and rerenders the button state. |
 | `applyBrowseFilters()` | `app.js` | Applies search and free-only filtering after API results return. |
 | `getGames(filters)` | `api.js` | Fetches deal list, maps, validates, deduplicates, returns UI-ready deals. |
@@ -47,9 +51,10 @@ The site has Home, Browse, Categories, Favorites, and Details views. Browse supp
 | `deduplicateDeals(deals)` | `api.js` | Keeps only the best deal for each game. |
 | `mapDealToGame(deal)` | `api.js` | Converts CheapShark list item into a GameVault card object. |
 | `mapDealDetailsToGame(id, deal)` | `api.js` | Converts CheapShark detail response into a Details object. |
-| `getRoute()` | `router.js` | Parses `window.location.hash` into page, ID, and query. |
+| `getCurrentPage()` | `router.js` | Reads the page from `body data-page` or the current file name. |
+| `getQueryParams()` | `router.js` | Parses `window.location.search` into `URLSearchParams`. |
+| `getDealId()` | `router.js` | Reads the Details deal ID from the `id` query parameter. |
 | `setActiveNav(page)` | `router.js` | Adds `.active` to the current navigation link. |
-| `startRouter(renderCurrentRoute)` | `router.js` | Starts hash routing and initial route rendering. |
 | `renderHome()` | `render.js` | Renders hero and featured cards. |
 | `renderBrowse()` | `render.js` | Renders filters and result cards. |
 | `renderCategories()` | `render.js` | Renders store and deal collection cards. |
@@ -94,12 +99,12 @@ gamevault-favorites
 
 ## Search, Filter, and Sort Explanation
 
-Browse filters live in the hash query string, not in hidden global state.
+Browse filters live in the normal URL query string, not in hidden global state.
 
 Example:
 
 ```text
-#/browse?search=halo&storeID=1&maxPrice=10&sortBy=Price
+browse.html?search=halo&storeID=1&maxPrice=10&sortBy=Price
 ```
 
 - Search becomes CheapShark `title` in `getGames()`, then `filterGamesBySearch()` also checks the returned titles client-side.
@@ -156,13 +161,13 @@ Let `n` be the number of deals returned by CheapShark. The project requests up t
 
 ## Common Teacher Questions and Strong Answers
 
-### Why did you use hash routing?
+### Why did you change to separate HTML pages?
 
-Because this is a static frontend-only project with no backend server. Hash routes like `#/browse` let JavaScript switch views without requiring server route configuration.
+Because the project requirement asks for real separate pages instead of one HTML file. The site still stays fully static: `index.html`, `browse.html`, `categories.html`, `favorites.html`, and `details.html` all load the same CSS and shared JavaScript modules.
 
 ### Where does the app start?
 
-`index.html` loads `js/app.js` as an ES module. In `app.js`, `startRouter(renderCurrentRoute)` starts the router, and `renderCurrentRoute()` decides which view to show.
+Each HTML page loads `js/app.js` as an ES module. In `app.js`, `renderCurrentPage()` checks `body data-page` and decides which page content to show.
 
 ### Why is `type="module"` used?
 
@@ -234,4 +239,4 @@ I would avoid inserting unescaped API/user text with `innerHTML`. I would render
 
 ## Best Defense Sentence
 
-“The code is separated by responsibility: `router.js` decides the view, `app.js` coordinates behavior, `api.js` fetches and normalizes live CheapShark data, `render.js` creates the DOM, `storage.js` persists favorites, and `style.css` handles the responsive visual design.”
+“The code is separated by responsibility: the HTML files provide real pages, `router.js` reads the current page and query parameters, `app.js` coordinates behavior, `api.js` fetches and normalizes live CheapShark data, `render.js` creates the DOM, `storage.js` persists favorites, and `style.css` handles the responsive visual design.”

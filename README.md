@@ -16,13 +16,13 @@ The project uses vanilla HTML, CSS, and JavaScript only. It does not use framewo
 
 ## Features
 
-- Home, Browse Deals, Categories, Favorites, and Deal Details views
+- Separate Home, Browse Deals, Categories, Favorites, and Deal Details pages
 - Dynamic deal cards rendered with JavaScript
 - Search by title
 - Filter by game store and maximum price
 - Sort with CheapShark supported sort options
-- Category/collection selection from the Categories view
-- Details view with deal metadata, price comparison info, ratings, and favorites
+- Category/collection selection from the Categories page
+- Details page with deal metadata, price comparison info, ratings, and favorites
 - Save and remove favorite deals with LocalStorage
 - Loading, error, and empty-results states
 - Responsive layout for mobile, tablet, and desktop screens
@@ -56,11 +56,29 @@ http://localhost:8000
 
 You can also use a normal static server extension such as Live Server in VS Code.
 
+## Pages and URLs
+
+- `index.html` renders the Home page.
+- `browse.html` renders Browse Deals.
+- `categories.html` renders Categories.
+- `favorites.html` renders Favorites.
+- `details.html?id={dealID}` renders one CheapShark deal details page.
+
+Browse filters use normal query parameters, for example:
+
+```text
+browse.html?search=doom&storeID=1&maxPrice=10&sortBy=Price
+```
+
 ## Project Structure
 
 ```text
 gamevault/
 ├── index.html
+├── browse.html
+├── categories.html
+├── favorites.html
+├── details.html
 ├── README.md
 ├── css/
 │   └── style.css
@@ -79,13 +97,13 @@ gamevault/
 
 ## File Responsibilities
 
-- `index.html` contains the page shell, semantic layout, navigation, favicon, and module script link.
+- `index.html`, `browse.html`, `categories.html`, `favorites.html`, and `details.html` contain the separate semantic page shells.
 - `css/style.css` contains the responsive dark dashboard design.
 - `js/api.js` handles only CheapShark API requests.
 - `js/storage.js` handles only LocalStorage favorites.
-- `js/render.js` creates HTML for states, cards, and views.
-- `js/router.js` reads hash routes and updates active navigation links.
-- `js/app.js` connects the API, router, rendering, filters, and favorites.
+- `js/render.js` creates HTML for states, cards, and page content.
+- `js/router.js` provides small page, query string, deal ID, and active navigation helpers for the multi-page setup.
+- `js/app.js` detects the current page, connects the API, rendering, filters, and favorites.
 
 ## Credits
 
@@ -98,7 +116,7 @@ gamevault/
 - [X] CheapShark API loads live deal data
 - [X] Loading, error, and empty-results states exist
 - [X] Responsive on mobile, tablet, and desktop
-- [X] At least 4 views are present
+- [X] At least 4 separate HTML pages are present
 - [X] README is complete
 - [X] Code is organized into `/css`, `/js`, and `/assets`
 - [X] No frameworks, build tools, API keys, or backend are used

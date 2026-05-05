@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-GameVault is a responsive vanilla HTML, CSS, and JavaScript website for discovering discounted PC game deals. It uses live deal data from the CheapShark API and presents it through several single-page-app style views: Home, Browse, Categories, Favorites, and Details.
+GameVault is a responsive vanilla HTML, CSS, and JavaScript website for discovering discounted PC game deals. It uses live deal data from the CheapShark API and presents it through separate static HTML pages: Home, Browse, Categories, Favorites, and Details.
 
 The project does not use React, frameworks, Bootstrap, Tailwind, jQuery, npm packages, a backend, or build tools. The whole application runs in the browser from static files.
 
@@ -19,14 +19,18 @@ For the exam, the key idea is: GameVault is not a general game database. It is a
 
 ## Technologies Used
 
-- `index.html`: semantic HTML page shell.
+- `index.html`: semantic Home page shell.
+- `browse.html`: semantic Browse page shell.
+- `categories.html`: semantic Categories page shell.
+- `favorites.html`: semantic Favorites page shell.
+- `details.html`: semantic Deal Details page shell.
 - `css/style.css`: custom responsive CSS using variables, Flexbox, Grid, media queries, glass panels, and the galaxy background.
-- `js/app.js`: main controller that connects routing, API calls, rendering, filters, and favorites.
+- `js/app.js`: main controller that detects the current page and connects API calls, rendering, filters, and favorites.
 - `js/api.js`: CheapShark API requests, response mapping, validation, deduplication, and detail normalization.
-- `js/router.js`: hash-based routing.
+- `js/router.js`: current page, query string, deal ID, and active navigation helpers.
 - `js/render.js`: dynamic DOM rendering with template strings.
 - `js/storage.js`: LocalStorage favorites.
-- Browser APIs: `fetch`, `async/await`, `URLSearchParams`, `FormData`, `localStorage`, `window.location.hash`, DOM selectors, and event listeners.
+- Browser APIs: `fetch`, `async/await`, `URLSearchParams`, `FormData`, `localStorage`, `window.location.search`, DOM selectors, and event listeners.
 
 ## Why CheapShark API Was Used
 
@@ -70,12 +74,12 @@ The project uses these CheapShark endpoints:
 
 ### Home
 
-The Home view is selected by the `#/home` hash route.
+The Home page is `index.html`.
 
 Flow:
 
-1. `renderCurrentRoute()` in `js/app.js` reads the current route.
-2. If `route.page === "home"`, it calls `showHome()`.
+1. `renderCurrentPage()` in `js/app.js` reads `body data-page="home"`.
+2. If `page === "home"`, it calls `showHome()`.
 3. `showHome()` calls `renderLoading(app, "Loading featured deals...")`.
 4. It awaits `getGames()`.
 5. It calls `renderHome(app, games.slice(0, 6), getFavorites().length, games.length)`.
@@ -102,15 +106,15 @@ Important classes:
 
 ### Browse
 
-The Browse view is selected by `#/browse`, optionally with query parameters such as:
+The Browse page is `browse.html`, optionally with query parameters such as:
 
 ```text
-#/browse?search=doom&storeID=1&maxPrice=10&sortBy=Price
+browse.html?search=doom&storeID=1&maxPrice=10&sortBy=Price
 ```
 
 Flow:
 
-1. `renderCurrentRoute()` calls `showBrowse(route.query)`.
+1. `renderCurrentPage()` calls `showBrowse(query)`.
 2. `showBrowse()` reads filters from `URLSearchParams`.
 3. It calls `renderLoading(app, "Loading deals...")`.
 4. It awaits `getGames(filters)`.
@@ -144,14 +148,13 @@ Important classes and IDs:
 
 ### Categories
 
-The Categories view is selected by `#/categories`.
+The Categories page is `categories.html`.
 
 Flow:
 
-1. `renderCurrentRoute()` calls `showCategories()`.
+1. `renderCurrentPage()` calls `showCategories()`.
 2. `showCategories()` calls `renderCategories(app)`.
-3. It finds buttons with `[data-browse-query]`.
-4. Each button gets a click listener that changes the hash to a filtered Browse route.
+3. Store and collection cards are normal links to filtered Browse URLs.
 
 Categories contains two types of shortcuts:
 
@@ -160,7 +163,7 @@ Categories contains two types of shortcuts:
 
 Examples:
 
-- Steam card links to `#/browse?storeID=1`.
+- Steam card links to `browse.html?storeID=1`.
 - Under $5 collection uses `maxPrice=5&sortBy=Price`.
 - Biggest Savings uses `sortBy=Savings`.
 
@@ -177,11 +180,11 @@ Important classes:
 
 ### Favorites
 
-The Favorites view is selected by `#/favorites`.
+The Favorites page is `favorites.html`.
 
 Flow:
 
-1. `renderCurrentRoute()` calls `showFavorites()`.
+1. `renderCurrentPage()` calls `showFavorites()`.
 2. `showFavorites()` reads saved deals with `getFavorites()`.
 3. It calls `renderFavorites(app, getFavorites())`.
 4. If favorites exist, it attaches click listeners to `[data-remove-favorite]` buttons.
@@ -205,13 +208,13 @@ Important classes:
 
 ### Details
 
-The Details view is selected by `#/game/{dealID}`.
+The Details page is selected by `details.html?id={dealID}`.
 
 Flow:
 
-1. A deal card has a link like `#/game/${encodeURIComponent(game.id)}`.
-2. `getRoute()` parses the hash and returns `{ page: "game", id, query }`.
-3. `renderCurrentRoute()` calls `showGameDetails(route.id)`.
+1. A deal card has a link like `details.html?id=${encodeURIComponent(game.id)}`.
+2. `getDealId()` reads the `id` query parameter.
+3. `renderCurrentPage()` calls `showGameDetails(id)`.
 4. `showGameDetails()` calls `renderLoading(app, "Loading deal details...")`.
 5. It awaits `getGameDetails(gameId)`.
 6. It calls `renderGameDetails(app, game, isFavorite(game.id))`.
@@ -242,9 +245,9 @@ Important classes:
 
 ## Data Flow
 
-### 1. User Opens the Site
+### 1. User Opens a Page
 
-The browser loads `index.html`, which includes:
+The browser loads one of the static HTML files, such as `index.html`, `browse.html`, `categories.html`, `favorites.html`, or `details.html`. Each file includes:
 
 - Header navigation.
 - `<main id="app" class="app-shell" tabindex="-1"></main>`.
@@ -257,31 +260,26 @@ The browser loads `index.html`, which includes:
 
 Because `app.js` is loaded as a module, it can use `import` statements to load the other JavaScript files.
 
-### 2. Router Chooses the View
+### 2. Page Detection Chooses the Content
 
 `app.js` calls:
 
 ```js
-startRouter(renderCurrentRoute);
+renderCurrentPage();
 ```
 
-`startRouter()` in `js/router.js`:
+`renderCurrentPage()` uses helpers from `js/router.js`:
 
-- Listens for `hashchange`.
-- Sends users without a hash to `#/home`.
-- Calls `renderCurrentRoute()` for the current route.
-
-`getRoute()` reads `window.location.hash` and returns:
-
-```js
-{ page, id, query }
-```
+- `getCurrentPage()` reads `body data-page` or the file name.
+- `getQueryParams()` reads `window.location.search`.
+- `getDealId()` reads `id` from `details.html?id={dealID}`.
+- `setActiveNav(page)` marks the current nav link.
 
 Examples:
 
-- `#/home` becomes `{ page: "home", id: "", query: URLSearchParams }`.
-- `#/browse?storeID=1` becomes `{ page: "browse", id: "", query }`.
-- `#/game/abc123` becomes `{ page: "game", id: "abc123", query }`.
+- `index.html` uses `page === "home"`.
+- `browse.html?storeID=1` uses `page === "browse"` and query `storeID=1`.
+- `details.html?id=abc123` uses `page === "details"` and ID `abc123`.
 
 ### 3. API Fetch Happens
 
@@ -397,7 +395,7 @@ The user can:
 - Remove favorites from the Favorites view.
 - Open external CheapShark, Steam, or Metacritic links.
 
-Most navigation happens by changing `window.location.hash`, which triggers the router.
+Navigation happens through normal links between HTML files, and Browse filters update `window.location.href` to `browse.html?...`.
 
 ## State Management Explanation
 
@@ -405,8 +403,8 @@ GameVault uses simple browser state instead of a framework state library.
 
 The main state sources are:
 
-- URL hash route: current page and detail ID.
-- URL query string inside the hash: Browse filters.
+- Current HTML page: Home, Browse, Categories, Favorites, or Details.
+- URL query string: Browse filters and the Details deal ID.
 - LocalStorage: saved favorites.
 - DOM: current rendered view.
 - `storeNames` module variable in `api.js`: cached store names after `/stores` is fetched.
@@ -504,7 +502,7 @@ GameVault includes several accessibility-friendly choices:
 
 - Semantic structure: `<header>`, `<nav>`, `<main>`, `<footer>`, `<section>`, `<article>`, headings, forms, buttons, and links.
 - Navigation has `aria-label="Main navigation"`.
-- The app container has `tabindex="-1"` so `app.focus()` can move focus to the updated view after route changes.
+- The app container has `tabindex="-1"` so `app.focus()` can move focus to the rendered page content after navigation.
 - Loading and error states use `aria-live`.
 - Result sections use labels such as `aria-label="Deal results"`, `aria-label="Featured deals"`, and `aria-label="Favorite deals"`.
 - Images have descriptive `alt` text.

@@ -571,6 +571,7 @@ main:focus,
   border: 0;
   padding: 22px;
   background: rgba(10, 29, 64, 0.62);
+  text-decoration: none;
   transition: transform 160ms ease, background 160ms ease;
 }
 

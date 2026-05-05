@@ -91,8 +91,8 @@ export function renderHome(app, featuredGames, favoritesCount, totalGames = feat
           <p>Discover live PC game deals, compare discounts, and save your favorite deals.</p>
         </div>
         <div class="hero-actions">
-          <a class="button" href="#/browse">Browse Deals</a>
-          <a class="button secondary" href="#/favorites">View Favorites (${favoritesCount})</a>
+          <a class="button" href="browse.html">Browse Deals</a>
+          <a class="button secondary" href="favorites.html">View Favorites (${favoritesCount})</a>
         </div>
       </div>
       <div class="hero-image-frame">
@@ -183,11 +183,11 @@ export function renderCategories(app) {
   const collectionCards = dealCollections
     .map((collection) => `
       <article class="category-card">
-        <button class="category-button" type="button" data-browse-query="${collection.query}">
+        <a class="category-button" href="browse.html?${collection.query}">
           <span class="category-card__label">${collection.label}</span>
           <strong>${collection.title}</strong>
           <span>${collection.description}</span>
-        </button>
+        </a>
       </article>
     `)
     .join("");
@@ -204,17 +204,17 @@ export function renderCategories(app) {
         <p>Start with where you want to shop.</p>
       </div>
       <div class="platform-grid" aria-label="Store links">
-        <a class="platform-card" href="#/browse?storeID=1">
+        <a class="platform-card" href="browse.html?storeID=1">
           <span>Store</span>
           <strong>Steam</strong>
           <small>Current deals listed for Steam.</small>
         </a>
-        <a class="platform-card" href="#/browse?storeID=7">
+        <a class="platform-card" href="browse.html?storeID=7">
           <span>Store</span>
           <strong>GOG</strong>
           <small>Current deals listed for GOG.</small>
         </a>
-        <a class="platform-card" href="#/browse?storeID=25">
+        <a class="platform-card" href="browse.html?storeID=25">
           <span>Store</span>
           <strong>Epic Games Store</strong>
           <small>Current deals listed for Epic.</small>
@@ -242,7 +242,7 @@ export function renderFavorites(app, favorites) {
           <span class="empty-favorites__eyebrow">Your vault is empty</span>
           <h1>No favorites saved yet</h1>
           <p>Browse deals and open a details page to save discounts you want to remember.</p>
-          <a class="button" href="#/browse">Browse Deals</a>
+          <a class="button" href="browse.html">Browse Deals</a>
         </div>
       </section>
     `;
@@ -297,7 +297,7 @@ export function renderGameDetails(app, game, favorite) {
           </button>
           ${game.steamUrl ? `<a class="button secondary" href="${game.steamUrl}" target="_blank" rel="noopener noreferrer">Steam Page</a>` : ""}
           ${game.metacriticLink ? `<a class="button secondary" href="${game.metacriticLink}" target="_blank" rel="noopener noreferrer">Metacritic</a>` : ""}
-          <a class="button secondary" href="#/browse">Back to Browse</a>
+          <a class="button secondary" href="browse.html">Back to Browse</a>
         </div>
       </div>
     </article>
@@ -323,7 +323,7 @@ function renderExpiredDeal(app) {
     <section class="state-box" aria-live="polite">
       <h1>This deal is no longer discounted.</h1>
       <p>GameVault only displays active discounted PC game deals.</p>
-      <a class="button" href="#/browse">Back to Browse</a>
+      <a class="button" href="browse.html">Back to Browse</a>
     </section>
   `;
 }
@@ -356,7 +356,7 @@ export function createGameCard(game, showRemoveButton = false) {
           <li class="tag">${game.platform || "Unknown platform"}</li>
         </ul>
         <div class="card-actions">
-          <a class="small-button" href="#/game/${encodeURIComponent(game.id)}">Details</a>
+          <a class="small-button" href="details.html?id=${encodeURIComponent(game.id)}">Details</a>
           ${favoriteButton}
         </div>
       </div>

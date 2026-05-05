@@ -7,6 +7,10 @@ This walkthrough explains the current codebase file by file and function by func
 ```text
 gamevault/
 ├── index.html
+├── browse.html
+├── categories.html
+├── favorites.html
+├── details.html
 ├── README.md
 ├── assets/
 │   ├── blue-galaxy-wallpaper.webp
@@ -23,11 +27,11 @@ gamevault/
     └── storage.js
 ```
 
-## `index.html`
+## HTML Pages
 
 ### Responsibility
 
-`index.html` is the static page shell. It does not contain the application views directly. Instead, it provides the permanent layout around the dynamic app:
+The project uses separate static HTML pages. Each page provides a semantic shell around the dynamic app content:
 
 - Metadata.
 - Stylesheet link.
@@ -35,6 +39,14 @@ gamevault/
 - Main app container.
 - Footer credit.
 - ES module script.
+
+The pages are:
+
+- `index.html`: Home.
+- `browse.html`: Browse Deals.
+- `categories.html`: Categories.
+- `favorites.html`: Favorites.
+- `details.html`: Deal Details.
 
 ### Semantic Structure
 
@@ -51,14 +63,14 @@ Important elements:
 
 ### Navigation
 
-The nav links use hash routes:
+The nav links use normal HTML files:
 
-- `#/home`
-- `#/browse`
-- `#/categories`
-- `#/favorites`
+- `index.html`
+- `browse.html`
+- `categories.html`
+- `favorites.html`
 
-Each nav link has `data-nav-link`, which `setActiveNav(page)` uses to apply or remove the `.active` class.
+Each nav link has a `data-nav-link` value, which `setActiveNav(page)` uses to apply or remove the `.active` class.
 
 ### Main App Container
 
@@ -608,24 +620,25 @@ From `render.js`:
 
 From `router.js`:
 
-- `getRoute`
+- `getCurrentPage`
+- `getDealId`
+- `getQueryParams`
 - `setActiveNav`
-- `startRouter`
 
 ### Startup
 
 ```js
 const app = document.querySelector("#app");
-startRouter(renderCurrentRoute);
+renderCurrentPage();
 ```
 
-`app` stores the main DOM container. `startRouter()` starts route handling and calls `renderCurrentRoute()` when needed.
+`app` stores the main DOM container. `renderCurrentPage()` runs once on page load and renders the correct content for the current HTML page.
 
-### `renderCurrentRoute()`
+### `renderCurrentPage()`
 
 Input:
 
-- None directly. It reads the current route from `getRoute()`.
+- None directly. It reads the current page from `getCurrentPage()` and query parameters from `getQueryParams()`.
 
 Output:
 
@@ -633,16 +646,16 @@ Output:
 
 What it does:
 
-- Reads `{ page, id, query }`.
-- Updates nav active state with `setActiveNav(route.page)`.
+- Reads `page` and `query`.
+- Updates nav active state with `setActiveNav(page)`.
 - Focuses `app`.
 - Calls the correct view function:
   - `showHome()`
-  - `showBrowse(route.query)`
+  - `showBrowse(query)`
   - `showCategories()`
   - `showFavorites()`
-  - `showGameDetails(route.id)`
-- Redirects unknown routes to `#/home`.
+  - `showGameDetails(getDealId(query))`
+- Falls back to Home for an unknown page value.
 
 ### `showHome()`
 
@@ -666,7 +679,7 @@ Flow:
 
 Input:
 
-- `query`: `URLSearchParams` from the hash route.
+- `query`: `URLSearchParams` from `window.location.search`.
 
 Output:
 
@@ -691,13 +704,12 @@ Input:
 
 Output:
 
-- Renders Categories and connects category buttons.
+- Renders Categories.
 
 Flow:
 
 - Calls `renderCategories(app)`.
-- Selects `[data-browse-query]` buttons.
-- Adds click listeners that set `window.location.hash` to `#/browse?...`.
+- Category and store cards are normal links to `browse.html?...`.
 
 ### `showFavorites()`
 
@@ -719,7 +731,7 @@ Flow:
 
 Input:
 
-- `gameId`: actually the CheapShark deal ID from the route.
+- `gameId`: the CheapShark deal ID from `details.html?id={dealID}`.
 
 Output:
 
@@ -727,6 +739,7 @@ Output:
 
 Flow:
 
+- If no ID exists, renders an error message.
 - Shows loading.
 - Awaits `getGameDetails(gameId)`.
 - Calls `renderGameDetails(app, game, isFavorite(game.id))`.
@@ -751,9 +764,9 @@ Flow:
   - Uses `FormData`.
   - Creates `URLSearchParams`.
   - Adds non-empty values only.
-  - Changes hash to `#/browse?...` or `#/browse`.
+  - Navigates to `browse.html?...` or `browse.html`.
 - On clear:
-  - Changes hash to `#/browse`.
+  - Navigates to `browse.html`.
 
 ### `connectFavoriteButton(game)`
 
@@ -873,31 +886,43 @@ Output:
 
 ### Responsibility
 
-`router.js` implements simple hash-based routing. It does not use the server. Every route is stored after `#` in the URL.
+`router.js` provides small helpers for the multi-page static site. It does not start a route listener; each HTML file loads `app.js`, and `app.js` renders once for that page.
 
-### `getRoute()`
+### `getCurrentPage()`
 
 Input:
 
-- None. Reads `window.location.hash`.
+- None. Reads `document.body.dataset.page` first, then falls back to the current file name.
 
 Output:
 
-- Object with:
-
-```js
-{ page, id, query }
-```
+- Page name string such as `home`, `browse`, `categories`, `favorites`, or `details`.
 
 What it does:
 
-- Defaults to `#/home`.
-- Removes the leading `#`.
-- Splits path and query string at `?`.
-- Splits path by `/`.
-- Uses the first path part as `page`.
-- Uses the second path part as decoded `id`.
-- Converts the query string into `URLSearchParams`.
+- Uses `body data-page` when present.
+- Maps file names like `index.html` and `browse.html` to page names.
+- Defaults to `home`.
+
+### `getQueryParams()`
+
+Input:
+
+- None. Reads `window.location.search`.
+
+Output:
+
+- A `URLSearchParams` object for the normal query string.
+
+### `getDealId()`
+
+Input:
+
+- Optional `URLSearchParams`.
+
+Output:
+
+- The `id` value from `details.html?id={dealID}`, or an empty string.
 
 ### `setActiveNav(page)`
 
@@ -912,24 +937,8 @@ Output:
 What it does:
 
 - Selects all `[data-nav-link]`.
-- Reads each link's `href`, removes `#/`, and compares it to `page`.
+- Reads each link's `data-nav-link` value and compares it to `page`.
 - Toggles `.active` when the link matches the current page.
-
-### `startRouter(renderCurrentRoute)`
-
-Input:
-
-- Callback function from `app.js`.
-
-Output:
-
-- Starts route handling.
-
-What it does:
-
-- Adds a `hashchange` listener.
-- If there is no hash, sets `window.location.hash = "#/home"` and returns.
-- Otherwise calls `renderCurrentRoute()` immediately.
 
 ## `js/render.js`
 
@@ -1075,9 +1084,9 @@ Output:
 It renders:
 
 - Store links using `.platform-card`.
-- Deal collection buttons using `.category-button` and `data-browse-query`.
+- Deal collection links using `.category-button`.
 
-The click behavior for collection buttons is added later in `showCategories()`.
+Those links navigate directly to filtered `browse.html?...` URLs.
 
 ### `renderFavorites(app, favorites)`
 
@@ -1386,7 +1395,7 @@ Current files:
 High-level dependency flow:
 
 ```text
-index.html
+HTML pages
   loads css/style.css
   loads js/app.js as an ES module
 
@@ -1397,8 +1406,8 @@ app.js
   imports router.js
 
 router.js
-  reads window.location.hash
-  tells app.js what page/id/query is active
+  reads the current page and query string
+  helps app.js decide what content to render
 
 api.js
   calls CheapShark with fetch

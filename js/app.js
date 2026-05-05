@@ -9,43 +9,44 @@ import {
   renderHome,
   renderLoading
 } from "./render.js";
-import { getRoute, setActiveNav, startRouter } from "./router.js";
+import { getCurrentPage, getDealId, getQueryParams, setActiveNav } from "./router.js";
 
 const app = document.querySelector("#app");
 
-startRouter(renderCurrentRoute);
+renderCurrentPage();
 
-async function renderCurrentRoute() {
-  const route = getRoute();
-  setActiveNav(route.page);
+async function renderCurrentPage() {
+  const page = getCurrentPage();
+  const query = getQueryParams();
+  setActiveNav(page);
   app.focus();
 
-  if (route.page === "home") {
+  if (page === "home") {
     await showHome();
     return;
   }
 
-  if (route.page === "browse") {
-    await showBrowse(route.query);
+  if (page === "browse") {
+    await showBrowse(query);
     return;
   }
 
-  if (route.page === "categories") {
+  if (page === "categories") {
     showCategories();
     return;
   }
 
-  if (route.page === "favorites") {
+  if (page === "favorites") {
     showFavorites();
     return;
   }
 
-  if (route.page === "game" && route.id) {
-    await showGameDetails(route.id);
+  if (page === "details") {
+    await showGameDetails(getDealId(query));
     return;
   }
 
-  window.location.hash = "#/home";
+  await showHome();
 }
 
 async function showHome() {
@@ -88,14 +89,6 @@ async function showBrowse(query) {
 
 function showCategories() {
   renderCategories(app);
-
-  const browseButtons = document.querySelectorAll("[data-browse-query]");
-
-  browseButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      window.location.hash = `#/browse?${button.dataset.browseQuery}`;
-    });
-  });
 }
 
 function showFavorites() {
@@ -112,6 +105,11 @@ function showFavorites() {
 }
 
 async function showGameDetails(gameId) {
+  if (!gameId) {
+    renderError(app, "No deal ID was provided. Open a deal from Browse or Favorites to view details.");
+    return;
+  }
+
   renderLoading(app, "Loading deal details...");
 
   try {
@@ -138,11 +136,11 @@ function connectBrowseControls() {
       }
     }
 
-    window.location.hash = params.toString() ? `#/browse?${params}` : "#/browse";
+    window.location.href = params.toString() ? `browse.html?${params}` : "browse.html";
   });
 
   clearButton.addEventListener("click", () => {
-    window.location.hash = "#/browse";
+    window.location.href = "browse.html";
   });
 }
 
